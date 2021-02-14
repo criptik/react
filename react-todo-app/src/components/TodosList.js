@@ -5,9 +5,14 @@ class TodosList extends React.Component {
     render() {
         return (
             <ul>
-            {this.props.todos.map(todo => (
-                <TodoItem key={todo.id} todo={todo} containerChange={this.props.containerChange} />
-            ))}
+                {this.props.todos.map(todo => (
+                    <TodoItem
+                        key={todo.id}
+                        todo={todo}
+                        containerChange={this.props.containerChange}
+                        deleteTodoProps={this.props.deleteTodoProps}
+                    />
+                ))}
             </ul>
         )
     }
