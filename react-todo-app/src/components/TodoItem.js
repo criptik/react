@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 class TodoItem extends React.Component {
     state = {
         editing : false,
+        localTitle : '',
     }
     
     static get propTypes() { 
@@ -23,7 +24,9 @@ class TodoItem extends React.Component {
         console.log(`edit mode activated for id ${todo.id}`);
         this.setState({
             editing: true,
+            localTitle : todo.title,
         })
+        
     }
     
     render() {
@@ -58,13 +61,16 @@ class TodoItem extends React.Component {
                 </div>
                 <input
                     type="text"
-                    value={todo.title}
+                    value={this.state.localTitle}
                     style={editMode}
                     onChange={e => {
-                        this.props.updateTitleProps(e.target.value, todo.id);
+                        this.setState({localTitle : e.target.value});
                     }}
                     onKeyPress={e => {
-                        if (e.key == 'Enter') this.setState({editing : false});
+                        if (e.key == 'Enter') {
+                            this.props.updateTitleProps(e.target.value, todo.id);
+                            this.setState({editing : false,  localTitle:''});
+                        }
                     }}
                 />
             </li>
