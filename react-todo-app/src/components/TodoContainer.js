@@ -6,6 +6,7 @@ import InputTodo from "./InputTodo";
 class TodoContainer extends React.Component {
     state = {
         todos: [],
+        nextid: 1,
     };
     
     dummyState = {
@@ -28,15 +29,11 @@ class TodoContainer extends React.Component {
         ]
     };        
 
-    nextid=4;
-
     componentDidMount() {
-        const temp = localStorage.getItem("todos")
-        const loadedTodos = JSON.parse(temp)
-        if (loadedTodos) {
-            this.setState({
-                todos: loadedTodos
-            })
+        const temp = localStorage.getItem("todosState")
+        const loadedTodosState = JSON.parse(temp)
+        if (loadedTodosState) {
+            this.setState(loadedTodosState);
         }
     }
 
@@ -47,9 +44,9 @@ class TodoContainer extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState) {
-        if(prevState.todos !== this.state.todos) {
-            const temp = JSON.stringify(this.state.todos)
-            localStorage.setItem("todos", temp)
+        if(prevState !== this.state) {
+            const temp = JSON.stringify(this.state)
+            localStorage.setItem("todosState", temp)
         }
     }
 
@@ -88,14 +85,16 @@ class TodoContainer extends React.Component {
     }
 
     addTodoItem(title) {
-        const newTodo = {
-            id: this.nextid++,
-            title: title,
-            completed: false
-        };
+        let newid = this.state.nextid;
+            const newTodo = {
+                id: newid,
+                title: title,
+                completed: false
+            };
         
         this.setState({
-            todos: [...this.state.todos, newTodo]
+            todos: [...this.state.todos, newTodo],
+            nextid: newid+1,
         });
     }
     
