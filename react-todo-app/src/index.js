@@ -3,6 +3,8 @@ import ReactDOM from "react-dom"
 //component file
 import TodoContainer from "./components/TodoContainer"
 
+//stylesheet
+import "./App.css"
 
 const mainContainer =
     <React.StrictMode>

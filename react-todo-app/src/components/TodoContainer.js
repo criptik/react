@@ -25,8 +25,15 @@ class TodoContainer extends React.Component {
     };        
 
     nextid=4;
+
+    setUpdateTitle(updatedTitle, id) {
+        console.log(updatedTitle, id);
+        this.setState(prevState => ({
+            todos: prevState.todos.map(todo => (todo.id === id) ? {...todo, title : updatedTitle} : todo)
+        }));
+    }
     
-    handleTodoChange(id) {
+    debugHandleTodoChange(id) {
         function completedUpdater(prevState) {
             console.group('completedUpdated');
             console.log(...prevState.todos);
@@ -41,16 +48,7 @@ class TodoContainer extends React.Component {
         this.setState(prevState => completedUpdater(prevState));
     }
 
-    testHandleTodoChange(id) {
-        this.setState(prevState => {
-            console.log(...prevState.todos);
-            let newState = {todos: prevState.todos.map(todo => (todo.id === id) ? ({...todo, completed : !todo.completed}) : todo)};
-            console.log(...newState.todos);
-            return newState;
-        });
-    }
-
-    origHandleTodoChange(id) {
+    handleTodoChange(id) {
         this.setState(prevState => ({
             todos: prevState.todos.map(todo => (todo.id === id) ? {...todo, completed : !todo.completed} : todo)
         }));
@@ -89,8 +87,9 @@ class TodoContainer extends React.Component {
                 />
                 <TodosList
                     todos={this.state.todos}
-                    containerChange={this.origHandleTodoChange.bind(this)}
+                    containerChange={this.handleTodoChange.bind(this)}
                     deleteTodoProps={this.delTodo.bind(this)}
+                    updateTitleProps={this.setUpdateTitle.bind(this)}
                 />
             </React.Fragment>
         );
