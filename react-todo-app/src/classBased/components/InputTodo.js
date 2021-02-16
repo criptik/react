@@ -1,9 +1,17 @@
 import React, { Component } from "react";
+import PropTypes from "prop-types";
+
 class InputTodo extends Component {
     state = {
         title: ""
     };
 
+    static get propTypes() { 
+        return { 
+            addTodoProp: PropTypes.func,
+        }; 
+    }
+    
     onChange(e) {
         this.setState(({
             [e.target.name] : e.target.value,

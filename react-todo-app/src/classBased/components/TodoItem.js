@@ -16,6 +16,7 @@ class TodoItem extends React.Component {
             }),
             containerChange: PropTypes.func,
             deleteTodoProps: PropTypes.func,
+            updateTitleProps: PropTypes.func,
         }; 
     }
 
@@ -67,7 +68,7 @@ class TodoItem extends React.Component {
                         this.setState({localTitle : e.target.value});
                     }}
                     onKeyPress={e => {
-                        if (e.key == 'Enter') {
+                        if (e.key === 'Enter') {
                             this.props.updateTitleProps(e.target.value, todo.id);
                             this.setState({editing : false,  localTitle:''});
                         }
