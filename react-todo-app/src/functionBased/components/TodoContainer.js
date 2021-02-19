@@ -1,124 +1,83 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import TodosList from "./TodosList";
 import Header from "./Header";
 import InputTodo from "./InputTodo";
 
-class TodoContainer extends React.Component {
-    state = {
-        todos: [],
-        nextid: 1,
-    };
+function TodoContainer(props) {
+    const localStorageKey = 'todosState';
+
+    function getInitialState() {
+        const emptyState = {todos: [], nextid: 1};
+        const savedState = JSON.parse(localStorage.getItem(localStorageKey));
+        return (savedState ? savedState : emptyState);
+    }               
+
+    const[curState, setNewState] = useState(getInitialState());
+
+    function saveStateToLocalStorage() {
+        const temp = JSON.stringify(curState);
+        localStorage.setItem(localStorageKey, temp);
+    }
     
-    dummyState = {
-        todos: [
-            {
-                id: 1,
-                title: "Setup development environment",
-                completed: true
-            },
-            {
-                id: 2,
-                title: "Develop website and add content",
-                completed: false
-            },
-            {
-                id: 3,
-                title: "Deploy to live server",
-                completed: false
-            }
-        ]
-    };        
+    // gets run on any update of state
+    useEffect(saveStateToLocalStorage,
+              [curState]);
 
-    componentDidMount() {
-        const temp = localStorage.getItem("todosState")
-        const loadedTodosState = JSON.parse(temp)
-        if (loadedTodosState) {
-            this.setState(loadedTodosState);
-        }
+    function setNewTodos(newtodos) {
+        setNewState({
+            ...curState,
+            todos: newtodos,
+        });
     }
-
-    dummyComponentDidMount() {
-        fetch("https://jsonplaceholder.typicode.com/todos")
-            .then(response => response.json())
-            .then(data => console.log(data));
-    }
-
-    componentDidUpdate(prevProps, prevState) {
-        if(prevState !== this.state) {
-            const temp = JSON.stringify(this.state)
-            localStorage.setItem("todosState", temp)
-        }
-    }
-
-    setUpdateTitle(updatedTitle, id) {
+    
+    function setUpdateTitle(updatedTitle, id) {
         console.log(updatedTitle, id);
-        this.setState(prevState => ({
-            todos: prevState.todos.map(todo => (todo.id === id) ? {...todo, title : updatedTitle} : todo)
-        }));
-    }
-    
-    debugHandleTodoChange(id) {
-        function completedUpdater(prevState) {
-            console.group('completedUpdated');
-            console.log(...prevState.todos);
-            let newState = {
-                todos: prevState.todos.map(todo => (todo.id === id) ? {...todo, completed : !todo.completed} : todo)
-            };
-            console.log(...newState.todos);
-            console.groupEnd();
-            return newState;
-        }
-
-        this.setState(prevState => completedUpdater(prevState));
+        setNewTodos(curState.todos.map(todo => (todo.id === id) ? {...todo, title : updatedTitle} : todo))
     }
 
-    handleTodoChange(id) {
-        this.setState(prevState => ({
-            todos: prevState.todos.map(todo => (todo.id === id) ? {...todo, completed : !todo.completed} : todo)
-        }));
+    function handleCompletionToggle(id) {
+        setNewTodos(curState.todos.map(todo => (todo.id === id) ? {...todo, completed : !todo.completed} : todo));
     }
 
-    delTodo(id) {
-        this.setState(prevState => ({
-            todos: prevState.todos.filter(todo => (todo.id !== id))
-        }));
+    function delTodo(id) {
+        setNewTodos(curState.todos.filter(todo => (todo.id !== id)));
     }
 
-    addTodoItem(title) {
-        let newid = this.state.nextid;
-            const newTodo = {
-                id: newid,
-                title: title,
-                completed: false
-            };
+    function addTodoItem(title) {
+        let newid = curState.nextid;
+        let newTodo = {
+            id: newid,
+            title: title,
+            completed: false
+        };
         
-        this.setState({
-            todos: [...this.state.todos, newTodo],
+        setNewState({
+            ...curState,
+            todos: [...curState.todos, newTodo],
             nextid: newid+1,
         });
     }
     
-    render() {
-        const redStyle = {
-            color : 'red',
-        };
+    const redStyle = {
+        color : 'red',
+    };
 
-        return (
-            <React.Fragment>
-                <h1>Hello from the React Todo App</h1>
-                <h3 style={redStyle}>This is the function-based Implementation.</h3>
-                <Header />
-                <InputTodo
-                    addTodoProp={this.addTodoItem.bind(this)}
-                />
-                <TodosList
-                    todos={this.state.todos}
-                    containerChange={this.handleTodoChange.bind(this)}
-                    deleteTodoProps={this.delTodo.bind(this)}
-                    updateTitleProps={this.setUpdateTitle.bind(this)}
-                />
-            </React.Fragment>
-        );
-    }
+    return (
+        <React.Fragment>
+            <h1>Hello from the React Todo App</h1>
+            <h3 style={redStyle}>This is the function-based Implementation.</h3>
+            <Header />
+            <InputTodo
+                addTodoProp={addTodoItem}
+            />
+            <TodosList
+                todos={curState.todos}
+                completionToggleProps={handleCompletionToggle}
+                deleteTodoProps={delTodo}
+                updateTitleProps={setUpdateTitle}
+            />
+        </React.Fragment>
+    );
 }
+
 export default TodoContainer

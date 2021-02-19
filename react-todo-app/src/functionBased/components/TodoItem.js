@@ -1,82 +1,86 @@
-import React from "react";
+import React, {useState, useEffect} from "react";
 import PropTypes from "prop-types";
 
-class TodoItem extends React.Component {
-    state = {
+
+function TodoItem (props) {
+    TodoItem.propTypes = { 
+        todo : PropTypes.exact({
+            id: PropTypes.number,
+            title: PropTypes.string,
+            completed: PropTypes.bool,
+        }),
+        completionToggleProps: PropTypes.func,
+        deleteTodoProps: PropTypes.func,
+        updateTitleProps: PropTypes.func,
+    }; 
+
+    const [curState, setNewState] = useState({
         editing : false,
         localTitle : '',
-    }
+    });
     
-    static get propTypes() { 
-        return { 
-            todo : PropTypes.exact({
-                id: PropTypes.number,
-                title: PropTypes.string,
-                completed: PropTypes.bool,
-            }),
-            containerChange: PropTypes.func,
-            deleteTodoProps: PropTypes.func,
-            updateTitleProps: PropTypes.func,
-        }; 
-    }
+    // returns a function that gets run on unmount
+    useEffect(() => {
+        return () => {
+            console.log("Cleaning up...")
+        }
+    }, [])
 
-    handleEditing = () => {
-        let todo = this.props.todo;
+    function handleEditing() {
+        let todo = props.todo;
         console.log(`edit mode activated for id ${todo.id}`);
-        this.setState({
+        setNewState({
             editing: true,
             localTitle : todo.title,
-        })
+        });
         
     }
     
-    render() {
-        let todo = this.props.todo;
-        let myColor = (todo.completed) ? 'green' : 'red';
-        let myStyle = {
-            color : myColor,
-        };
-        let viewMode = {};
-        let editMode = {
-            border: '1px solid black',
-            display : 'block',
-        };
+    let todo = props.todo;
+    let myColor = (todo.completed) ? 'green' : 'red';
+    let myStyle = {
+        color : myColor,
+    };
+    let viewMode = {};
+    let editMode = {
+        border: '1px solid black',
+        display : 'block',
+    };
 
-        if (this.state.editing) {
-            viewMode.display = "none";
-        } else {
-            editMode.display = "none";
-        }
-        return (
-            <li style={myStyle}>
-                <div onDoubleClick={this.handleEditing} style={viewMode}>
-                    <input
-                        type="checkbox"
-                        checked={todo.completed}
-                        onChange={() => this.props.containerChange(todo.id)}
-                    />
-                    <button onClick={() => this.props.deleteTodoProps(todo.id)}>
-                        Delete Me!
-                    </button>
-                    {todo.title}, id={todo.id}
-                </div>
-                <input
-                    type="text"
-                    value={this.state.localTitle}
-                    style={editMode}
-                    onChange={e => {
-                        this.setState({localTitle : e.target.value});
-                    }}
-                    onKeyPress={e => {
-                        if (e.key === 'Enter') {
-                            this.props.updateTitleProps(e.target.value, todo.id);
-                            this.setState({editing : false,  localTitle:''});
-                        }
-                    }}
-                />
-            </li>
-        );
+    if (curState.editing) {
+        viewMode.display = "none";
+    } else {
+        editMode.display = "none";
     }
+    return (
+        <li style={myStyle}>
+        <div onDoubleClick={handleEditing} style={viewMode}>
+        <input
+        type="checkbox"
+        checked={todo.completed}
+        onChange={() => props.completionToggleProps(todo.id)}
+        />
+        <button onClick={() => props.deleteTodoProps(todo.id)}>
+        Delete Me!
+        </button>
+        {todo.title}, id={todo.id}
+        </div>
+        <input
+        type="text"
+        value={curState.localTitle}
+        style={editMode}
+        onChange={e => {
+            setNewState({...curState, localTitle : e.target.value});
+        }}
+        onKeyPress={e => {
+            if (e.key === 'Enter') {
+                props.updateTitleProps(e.target.value, todo.id);
+                setNewState({editing : false,  localTitle:''});
+            }
+        }}
+        />
+        </li>
+    );
 }
 
 export default TodoItem;

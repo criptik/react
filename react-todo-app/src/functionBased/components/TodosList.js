@@ -3,31 +3,27 @@ import PropTypes from "prop-types";
 import TodoItem from "./TodoItem";
 
 
-class TodosList extends React.Component {
-    static get propTypes() { 
-        return { 
-            todos : PropTypes.array,
-            containerChange: PropTypes.func,
-            deleteTodoProps: PropTypes.func,
-            updateTitleProps: PropTypes.func,
-        }; 
-    }
-
-    render() {
-        return (
-            <ul>
-            {this.props.todos.map(todo => (
+function TodosList(props) {
+    TodosList.propTypes = { 
+        todos : PropTypes.array,
+        completionToggleProps: PropTypes.func,
+        deleteTodoProps: PropTypes.func,
+        updateTitleProps: PropTypes.func,
+    }; 
+    
+    return (
+        <ul>
+            {props.todos.map(todo => (
                 <TodoItem
-                key={todo.id}
-                        todo={todo}
-                        containerChange={this.props.containerChange}
-                        deleteTodoProps={this.props.deleteTodoProps}
-                        updateTitleProps={this.props.updateTitleProps}
-                    />
-                ))}
-            </ul>
-        )
-    }
+                    key={todo.id}
+                    todo={todo}
+                    completionToggleProps={props.completionToggleProps}
+                    deleteTodoProps={props.deleteTodoProps}
+                    updateTitleProps={props.updateTitleProps}
+                />
+            ))}
+        </ul>
+    )
 }
 
 export default TodosList

@@ -105,8 +105,8 @@ class TodoContainer extends React.Component {
 
         return (
             <React.Fragment>
-                <h1>Hello from Create React App</h1>
-                <p style={redStyle}>I am really really in a React Component!</p>
+                <h1>Hello from React Todos App</h1>
+                <h3 style={redStyle}>This one uses classBased Components</h3>
                 <Header />
                 <InputTodo
                     addTodoProp={this.addTodoItem.bind(this)}
