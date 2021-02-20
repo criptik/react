@@ -1,4 +1,5 @@
 import React, {useState, useEffect} from "react";
+import { FaTrash } from "react-icons/fa"
 import PropTypes from "prop-types";
 
 
@@ -37,7 +38,7 @@ function TodoItem (props) {
     }
     
     let todo = props.todo;
-    let myColor = (todo.completed) ? 'green' : 'red';
+    let myColor = (todo.completed) ? 'blue' : 'red';
     let myStyle = {
         color : myColor,
     };
@@ -54,31 +55,33 @@ function TodoItem (props) {
     }
     return (
         <li style={myStyle}>
-        <div onDoubleClick={handleEditing} style={viewMode}>
-        <input
-        type="checkbox"
-        checked={todo.completed}
-        onChange={() => props.completionToggleProps(todo.id)}
-        />
-        <button onClick={() => props.deleteTodoProps(todo.id)}>
-        Delete Me!
-        </button>
-        {todo.title}, id={todo.id}
-        </div>
-        <input
-        type="text"
-        value={curState.localTitle}
-        style={editMode}
-        onChange={e => {
-            setNewState({...curState, localTitle : e.target.value});
-        }}
-        onKeyPress={e => {
-            if (e.key === 'Enter') {
-                props.updateTitleProps(e.target.value, todo.id);
-                setNewState({editing : false,  localTitle:''});
-            }
-        }}
-        />
+            <div onDoubleClick={handleEditing} style={viewMode}>
+                <input
+                    type="checkbox"
+                    checked={todo.completed}
+                    onChange={() => props.completionToggleProps(todo.id)}
+                />
+                {todo.title}, id={todo.id}
+                <button onClick={() => props.deleteTodoProps(todo.id)}>
+                    <FaTrash
+                        style={{ color: "orangered", fontSize: "16px" }}
+                    />
+                </button>
+            </div>
+            <input
+                type="text"
+                value={curState.localTitle}
+                style={editMode}
+                onChange={e => {
+                    setNewState({...curState, localTitle : e.target.value});
+                }}
+                onKeyPress={e => {
+                    if (e.key === 'Enter') {
+                        props.updateTitleProps(e.target.value, todo.id);
+                        setNewState({editing : false,  localTitle:''});
+                    }
+                }}
+            />
         </li>
     );
 }
