@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import TodosList from "./TodosList";
 import Header from "./Header";
 import InputTodo from "./InputTodo";
+import { Route, Switch } from "react-router-dom";
+import About from "../pages/About";
+import NotMatch from "../pages/NotMatch";
+import Navbar from "./Navbar";
 
 function TodoContainer(props) {
     const localStorageKey = 'todosState';
@@ -63,20 +67,37 @@ function TodoContainer(props) {
     };
 
     return (
-        <React.Fragment>
-            <h1>Hello from the React Todo App</h1>
-            <h3 style={redStyle}>This is the function-based Implementation.</h3>
-            <Header />
-            <InputTodo
-                addTodoProp={addTodoItem}
-            />
-            <TodosList
-                todos={curState.todos}
-                completionToggleProps={handleCompletionToggle}
-                deleteTodoProps={delTodo}
-                updateTitleProps={setUpdateTitle}
-            />
-        </React.Fragment>
+        <>
+            <Navbar/>
+            <Switch>
+                <Route exact path='/'>
+                    <React.Fragment>
+                        <div className="container">
+                            <h1>Hello from the React Todo App</h1>
+                            <h3 style={redStyle}>This is the function-based Implementation.</h3>
+                            <div className="inner">
+                                <Header />
+                                <InputTodo
+                                    addTodoProp={addTodoItem}
+                                />
+                                <TodosList
+                                    todos={curState.todos}
+                                    completionToggleProps={handleCompletionToggle}
+                                    deleteTodoProps={delTodo}
+                                    updateTitleProps={setUpdateTitle}
+                                />
+                            </div>
+                        </div>
+                    </React.Fragment>
+                </Route>
+                <Route path="/about">
+                    <About />
+                </Route>
+                <Route path="*">
+                    <NotMatch />
+                </Route>
+            </Switch>
+        </>
     );
 }
 
