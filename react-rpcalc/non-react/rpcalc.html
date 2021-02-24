@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<style>
+    .tally {
+	width:75%;
+	height: 100px;
+	border: thin solid black;
+	overflow-y: scroll;
+    }
+</style>
+
+<html>
+
+<body>
+
+  <p>Some Text Before the script...</p>
+
+  <div id="d1", class="tally" >
+  </div>
+
+  <p>...Some Text After the script.</p>
+
+  <label for="textInput">Data Entry:</label>
+  <input id="myInput" type="text" onchange="inputfunc(this)" onkeydown="keyfunc" />
+
+  
+  <script type="text/javascript" src="rpcalc.js">
+  </script>
+
+  
+</body>
+
+</html>
