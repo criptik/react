@@ -74,6 +74,7 @@ class Game extends React.Component {
 
 
     jumpTo(step) {
+        if (step < 0 || step >= this.state.history.length) return;
         this.setState({
             stepNumber: step,
             xIsNext: (step % 2) === 0,
@@ -101,7 +102,8 @@ class Game extends React.Component {
         } else {
             status = 'Next player: ' + this.charFromNextState();
         }
-
+        let dbgInfo = `step=${this.state.stepNumber} histlength=${this.state.history.length}`;
+        let fwdDisable = this.state.stepNumber === this.state.history.length;
         return (
             <div className="game">
               <div className="game-board">
@@ -111,8 +113,16 @@ class Game extends React.Component {
                 />
               </div>
               <div className="game-info">
-                <div>{status}</div>
-                <ol>{moves}</ol>
+                <div>
+                  {status}
+                  <p>
+                    {dbgInfo}
+                  </p>
+                </div>
+                <div>
+                  <button onClick={() => this.jumpTo(this.state.stepNumber-1)}>Back</button>
+                  <button disabled={fwdDisable} onClick={() => this.jumpTo(this.state.stepNumber+1)}>Fwd</button>
+                </div>
               </div>
             </div>
         );

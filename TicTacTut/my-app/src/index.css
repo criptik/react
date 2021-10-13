@@ -48,3 +48,8 @@ ol, ul {
 .game-info {
   margin-left: 20px;
 }
+
+button:disabled {
+    background: #F5F5F5;
+    color : #C3C3C3;
+}
