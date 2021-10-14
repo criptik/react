@@ -5,7 +5,7 @@ import './index.css';
 
 function Square(props) {
     return (
-        <button className="square" onClick={props.onClick}>
+        <button style={{backgroundColor: props.highlight ? "Pink" : "#fff"}} className="square" onClick={props.onClick}>
           {props.value}
         </button>
     );
@@ -16,6 +16,7 @@ class Board extends React.Component {
         return (
             <Square
               value={this.props.squares[i]}
+              highlight={this.props.winline && this.props.winline.includes(i)}
               onClick={() => this.props.onClick(i)}
             />
         );
@@ -59,7 +60,8 @@ class Game extends React.Component {
         const history = this.state.history.slice(0, this.state.stepNumber + 1);
         const current = history[history.length - 1];
         const squares = current.squares.slice();
-        if (calculateWinner(squares) || squares[i]) {
+        const [winner, winline] = calculateWinner(squares);
+        if (winner || squares[i]) {
             return;
         }
         squares[i] = this.charFromNextState();
@@ -84,7 +86,7 @@ class Game extends React.Component {
     render() {
         const history = this.state.history;
         const current = history[this.state.stepNumber];
-        const winner = calculateWinner(current.squares);
+        const [winner, winline] = calculateWinner(current.squares);
 
         let status;
         if (winner) {
@@ -92,8 +94,8 @@ class Game extends React.Component {
         } else {
             status = 'Next player: ' + this.charFromNextState();
         }
-        let dbgInfo = `step=${this.state.stepNumber} histlength=${this.state.history.length}`;
-        let showDbg = true;
+        let dbgInfo = `step=${this.state.stepNumber} histlength=${this.state.history.length}, winline=${winline}`;
+        let showDbg = false;
         let backDisable = this.state.stepNumber === 0;
         let fwdDisable = this.state.stepNumber === this.state.history.length - 1;
         return (
@@ -102,6 +104,7 @@ class Game extends React.Component {
                 <Board
                   squares={current.squares}
                   onClick={(i) => this.handleClick(i)}
+                  winline={winline}
                 />
               </div>
               <div className="game-info">
@@ -145,11 +148,11 @@ function calculateWinner(sq) {
             let elem = [...lineset][0];
             // have a winner if set is not all null
             if (elem) {
-                return elem;
+                return [elem, lines[i]];
             }
         }
     }
     // if we got this far, no winner.  Check if array is full, return 'Draw'
     var nullcount = sq.reduce((prev, val)=> prev + (val === null), 0);
-    return (nullcount > 0 ? null : 'Draw')
+    return (nullcount > 0 ? [null,null] : ['Draw',null])
 }
