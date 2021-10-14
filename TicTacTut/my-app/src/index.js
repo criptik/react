@@ -86,16 +86,6 @@ class Game extends React.Component {
         const current = history[this.state.stepNumber];
         const winner = calculateWinner(current.squares);
 
-        const moves = history.map((step, move) => {
-            const desc = move ?
-                  'Go to move #' + move :
-                  'Go to game start';
-            return (
-                <li>
-                  <button onClick={() => this.jumpTo(move)}>{desc}</button>
-                </li>
-            );
-        });        
         let status;
         if (winner) {
             status = 'Winner: ' + winner;
@@ -103,7 +93,9 @@ class Game extends React.Component {
             status = 'Next player: ' + this.charFromNextState();
         }
         let dbgInfo = `step=${this.state.stepNumber} histlength=${this.state.history.length}`;
-        let fwdDisable = this.state.stepNumber === this.state.history.length;
+        let showDbg = true;
+        let backDisable = this.state.stepNumber === 0;
+        let fwdDisable = this.state.stepNumber === this.state.history.length - 1;
         return (
             <div className="game">
               <div className="game-board">
@@ -115,12 +107,11 @@ class Game extends React.Component {
               <div className="game-info">
                 <div>
                   {status}
-                  <p>
-                    {dbgInfo}
-                  </p>
+                  <br/>
+                  {showDbg && dbgInfo}
                 </div>
                 <div>
-                  <button onClick={() => this.jumpTo(this.state.stepNumber-1)}>Back</button>
+                  <button disabled={backDisable} onClick={() => this.jumpTo(this.state.stepNumber-1)}>Back</button>
                   <button disabled={fwdDisable} onClick={() => this.jumpTo(this.state.stepNumber+1)}>Fwd</button>
                 </div>
               </div>
