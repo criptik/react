@@ -16,6 +16,7 @@ class Board extends React.Component {
     renderSquare(i) {
         return (
             <Square
+              key={i}
               value={this.props.squares[i]}
               highlight={this.props.winline && this.props.winline.includes(i)}
               onClick={() => this.props.onClick(i)}
@@ -25,12 +26,12 @@ class Board extends React.Component {
     
     render() {
         let rows = [];
-        for (let r=0; r<3; r++) {
+        for (let r=0; r < this.props.boardSize; r++) {
             let cols = [];
-            for (let c=0; c<3; c++) {
-                cols.push(this.renderSquare(r*3 + c));
+            for (let c=0; c < this.props.boardSize; c++) {
+                cols.push(this.renderSquare(r*this.props.boardSize + c));
             }
-            rows.push(<div className='board-row'>{cols}</div>);
+            rows.push(<div key={r} className='board-row'>{cols}</div>);
         }
         return(
             <div>
@@ -51,18 +52,57 @@ class Game extends React.Component {
             xIsNext: true,
             boardSize: 3,
         };
+        this.calcWinLines();
+        this.reCalcWinLinesNeeded = false;
     }
 
     charFromNextState() {
         return this.state.xIsNext ? 'X' : 'O'
     }
+
+    calcWinLines() {
+        let bs = this.state.boardSize;
+        function pushTo(a, r, c) {
+            a.push(r*bs + c);
+        }
+        let wl = [];
+        for (let r=0; r<bs; r++) {
+            let wlx = [];
+            for (let c=0; c<bs; c++) {
+                pushTo(wlx, r, c);
+            }
+            wl.push(wlx);
+        }
+        console.log(bs, wl);
+        for (let c=0; c<bs; c++) {
+            let wlx = [];
+            for (let r=0; r<bs; r++) {
+                pushTo(wlx, r, c);
+            }
+            wl.push(wlx);
+        }
+        console.log(wl);
+        let wlx = [];
+        for (let r=0; r<bs; r++) {
+            pushTo(wlx, r, r);
+        }
+        wl.push(wlx);
+        wlx = [];
+        for (let r=0; r<bs; r++) {
+            pushTo(wlx, r, (bs-1)-r);
+        }
+        wl.push(wlx);
+        
+        this.winLines = wl;
+        console.log(this.winLines);
     
+    }
     
     handleClick(i) {
         const history = this.state.history.slice(0, this.state.stepNumber + 1);
         const current = history[history.length - 1];
         const squares = current.squares.slice();
-        const [winner] = calculateWinner(squares);
+        const [winner] = this.calculateWinner(squares);
         if (winner || squares[i]) {
             return;
         }
@@ -85,11 +125,37 @@ class Game extends React.Component {
         });
     }
     
+    calculateWinner(sq) {
+        for (let i=0; i<this.winLines.length; i++) {
+            let lineset = new Set(this.winLines[i].map(n => sq[n]));
+            if (lineset.size === 1) {
+                let elem = [...lineset][0];
+                // have a winner if set is not all null
+                if (elem) {
+                    return [elem, this.winLines[i]];
+                }
+            }
+        }
+        // if we got this far, no winner.  Check if array is full, return 'Draw'
+        var nullcount = sq.reduce((prev, val)=> prev + (val === null), 0);
+        return (nullcount > 0 ? [null,null] : ['Draw',null])
+    }
+
+    handleNewBoardSize(e) {
+        this.setState({boardSize: e});
+        console.log(e, this.state);
+        this.reCalcWinLinesNeeded = true;
+    }
+    
     render() {
         const history = this.state.history;
         const current = history[this.state.stepNumber];
-        const [winner, winline] = calculateWinner(current.squares);
+        const [winner, winline] = this.calculateWinner(current.squares);
 
+        if (this.reCalcWinLinesNeeded) {
+            this.calcWinLines();
+            this.reCalcWinLinesNeeded = false;
+        }
         let status;
         if (winner) {
             status = 'Winner: ' + winner;
@@ -106,7 +172,7 @@ class Game extends React.Component {
               <NumericInput  className="num-input"
                              min={3} max={10}
                              value={this.state.boardSize}
-                             onChange={(e)=> this.setState({boardSize: e})}
+                             onChange={(e)=> this.handleNewBoardSize(e)}
               />
               <p/>
             <div className="game">
@@ -115,6 +181,7 @@ class Game extends React.Component {
                   squares={current.squares}
                   onClick={(i) => this.handleClick(i)}
                   winline={winline}
+                  boardSize={this.state.boardSize}
                 />
               </div>
               <div className="game-info">
@@ -142,28 +209,3 @@ ReactDOM.render(
 );
 
 
-function calculateWinner(sq) {
-    const lines = [
-        [0, 1, 2],
-        [3, 4, 5],
-        [6, 7, 8],
-        [0, 3, 6],
-        [1, 4, 7],
-        [2, 5, 8],
-        [0, 4, 8],
-        [2, 4, 6],
-    ];
-    for (let i=0; i<lines.length; i++) {
-        let lineset = new Set(lines[i].map(n => sq[n]));
-        if (lineset.size === 1) {
-            let elem = [...lineset][0];
-            // have a winner if set is not all null
-            if (elem) {
-                return [elem, lines[i]];
-            }
-        }
-    }
-    // if we got this far, no winner.  Check if array is full, return 'Draw'
-    var nullcount = sq.reduce((prev, val)=> prev + (val === null), 0);
-    return (nullcount > 0 ? [null,null] : ['Draw',null])
-}
