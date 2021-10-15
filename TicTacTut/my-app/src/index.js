@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import NumericInput from 'react-numeric-input';
 import './index.css';
 
 
@@ -48,6 +49,7 @@ class Game extends React.Component {
             }],
             stepNumber: 0,
             xIsNext: true,
+            boardSize: 3,
         };
     }
 
@@ -60,7 +62,7 @@ class Game extends React.Component {
         const history = this.state.history.slice(0, this.state.stepNumber + 1);
         const current = history[history.length - 1];
         const squares = current.squares.slice();
-        const [winner, winline] = calculateWinner(squares);
+        const [winner] = calculateWinner(squares);
         if (winner || squares[i]) {
             return;
         }
@@ -94,11 +96,19 @@ class Game extends React.Component {
         } else {
             status = 'Next player: ' + this.charFromNextState();
         }
-        let dbgInfo = `step=${this.state.stepNumber} histlength=${this.state.history.length}, winline=${winline}`;
-        let showDbg = false;
+        let dbgInfo = `step=${this.state.stepNumber},  winline=${winline}, boardSize=${this.state.boardSize}`;
+        let showDbg = true;
         let backDisable = this.state.stepNumber === 0;
         let fwdDisable = this.state.stepNumber === this.state.history.length - 1;
         return (
+            <div>
+              boardsize:&nbsp; 
+              <NumericInput  className="num-input"
+                             min={3} max={10}
+                             value={this.state.boardSize}
+                             onChange={(e)=> this.setState({boardSize: e})}
+              />
+              <p/>
             <div className="game">
               <div className="game-board">
                 <Board
@@ -118,6 +128,7 @@ class Game extends React.Component {
                   <button disabled={fwdDisable} onClick={() => this.jumpTo(this.state.stepNumber+1)}>Fwd</button>
                 </div>
               </div>
+            </div>
             </div>
         );
     }
