@@ -44,58 +44,46 @@ class Board extends React.Component {
 class Game extends React.Component {
     constructor(props) {
         super(props);
+        this.newBoardSize = 3;
+        this.newWinSize = 3;
         this.state = {
             history: [{
-                squares: Array(9).fill(null),
+                squares: Array(this.newBoardSize ** 2).fill(null),
             }],
             stepNumber: 0,
             xIsNext: true,
-            boardSize: 3,
+            boardSize: this.newBoardSize,
+            winSize: this.newWinSize,
         };
         this.calcWinLines();
-        this.reCalcWinLinesNeeded = false;
+        // console.log('constructor done: ', this.newState, this.newState.history[0]); 
     }
-
     charFromNextState() {
         return this.state.xIsNext ? 'X' : 'O'
     }
 
     calcWinLines() {
-        let bs = this.state.boardSize;
-        function pushTo(a, r, c) {
-            a.push(r*bs + c);
+        let bs = this.newBoardSize;
+        let ws = this.newWinSize;
+        function pushRange(wl, rslo, rshi, cslo, cshi, rstep, cstep) {
+            for (let rstart=rslo; rstart <= rshi; rstart++) {
+                for (let cstart=cslo; cstart <= cshi; cstart++) {
+                    let wlx = [];
+                    for (let r=rstart, c=cstart, count=0; count < ws; r += rstep, c += cstep, count++) {
+                        wlx.push(r*bs + c);
+                    }
+                    wl.push(wlx);
+                }
+            }
         }
         let wl = [];
-        for (let r=0; r<bs; r++) {
-            let wlx = [];
-            for (let c=0; c<bs; c++) {
-                pushTo(wlx, r, c);
-            }
-            wl.push(wlx);
-        }
-        console.log(bs, wl);
-        for (let c=0; c<bs; c++) {
-            let wlx = [];
-            for (let r=0; r<bs; r++) {
-                pushTo(wlx, r, c);
-            }
-            wl.push(wlx);
-        }
-        console.log(wl);
-        let wlx = [];
-        for (let r=0; r<bs; r++) {
-            pushTo(wlx, r, r);
-        }
-        wl.push(wlx);
-        wlx = [];
-        for (let r=0; r<bs; r++) {
-            pushTo(wlx, r, (bs-1)-r);
-        }
-        wl.push(wlx);
+        pushRange(wl, 0, bs-1, 0, bs-ws, 0, 1);  // horizontal
+        pushRange(wl, 0, bs-ws, 0, bs-1, 1, 0);  // vertical
+        pushRange(wl, 0, bs-ws, 0, bs-ws, 1, 1);  // diag NW-SE
+        pushRange(wl, ws-1, bs-1, 0, bs-ws, -1, 1);  // diag SW-NE
         
         this.winLines = wl;
-        console.log(this.winLines);
-    
+        // console.log(this.winLines);
     }
     
     handleClick(i) {
@@ -142,20 +130,34 @@ class Game extends React.Component {
     }
 
     handleNewBoardSize(e) {
-        this.setState({boardSize: e});
-        console.log(e, this.state);
-        this.reCalcWinLinesNeeded = true;
+        this.newBoardSize = e;
+        this.initBoard();
+    }
+
+    handleNewWinSize(e) {
+        this.newWinSize = e;
+        this.initBoard();
+    }
+
+    initBoard() {
+        this.setState({
+            history: [{
+                squares: Array(this.newBoardSize ** 2).fill(null),
+            }],
+            stepNumber: 0,
+            xIsNext: true,
+            boardSize: this.newBoardSize,
+            winSize: this.newWinSize,
+        });
+        this.calcWinLines();
     }
     
     render() {
+        // console.log(`in render`, this.state);
         const history = this.state.history;
         const current = history[this.state.stepNumber];
         const [winner, winline] = this.calculateWinner(current.squares);
 
-        if (this.reCalcWinLinesNeeded) {
-            this.calcWinLines();
-            this.reCalcWinLinesNeeded = false;
-        }
         let status;
         if (winner) {
             status = 'Winner: ' + winner;
@@ -175,27 +177,34 @@ class Game extends React.Component {
                              onChange={(e)=> this.handleNewBoardSize(e)}
               />
               <p/>
-            <div className="game">
-              <div className="game-board">
-                <Board
-                  squares={current.squares}
-                  onClick={(i) => this.handleClick(i)}
-                  winline={winline}
-                  boardSize={this.state.boardSize}
-                />
-              </div>
-              <div className="game-info">
-                <div>
-                  {status}
-                  <br/>
-                  {showDbg && dbgInfo}
+              winsize:&nbsp; 
+              <NumericInput  className="num-input"
+                             min={3} max={this.state.boardSize}
+                             value={this.state.winSize}
+                             onChange={(e)=> this.handleNewWinSize(e)}
+              />
+              <p/>
+              <div className="game">
+                <div className="game-board">
+                  <Board
+                    squares={current.squares}
+                    onClick={(i) => this.handleClick(i)}
+                    winline={winline}
+                    boardSize={this.state.boardSize}
+                  />
                 </div>
-                <div>
-                  <button disabled={backDisable} onClick={() => this.jumpTo(this.state.stepNumber-1)}>Back</button>
-                  <button disabled={fwdDisable} onClick={() => this.jumpTo(this.state.stepNumber+1)}>Fwd</button>
+                <div className="game-info">
+                  <div>
+                    {status}
+                    <br/>
+                    {showDbg && dbgInfo}
+                  </div>
+                  <div>
+                    <button disabled={backDisable} onClick={() => this.jumpTo(this.state.stepNumber-1)}>Back</button>
+                    <button disabled={fwdDisable} onClick={() => this.jumpTo(this.state.stepNumber+1)}>Fwd</button>
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
         );
     }
