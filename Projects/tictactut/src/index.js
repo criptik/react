@@ -170,6 +170,8 @@ class Game extends React.Component {
         let fwdDisable = this.state.stepNumber === this.state.history.length - 1;
         return (
             <div>
+              Tic Tac Toe App
+              <p/>
               boardsize:&nbsp; 
               <NumericInput  className="num-input"
                              min={3} max={10}
