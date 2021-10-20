@@ -1,0 +1,3 @@
+The Projects directory contains the node_modules directory that is
+shared with all next-level projects.  To create this directory from
+scratch run createSharedProjectsDir.sh.
