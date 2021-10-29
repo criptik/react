@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import NumericInput from 'react-numeric-input';
 import './index.css';
-var _ = require("underscore");
-
+// var _ = require("underscore");
+import * as _ from 'underscore';
 
 function Square(props) {
     return (
