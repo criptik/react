@@ -6,15 +6,15 @@ function arrayEquals(a, b) {
 }
 
 
-class Sqdat {
+class CardData {
     constructor(x) {
         if (Array.isArray(x)) {
             this.attrs = x;
-            this.asint = Sqdat.attrsToInt(x);
+            this.asint = CardData.attrsToInt(x);
         }
         else {
             this.asint = x;
-            this.attrs = Sqdat.intToAttrs(x);
+            this.attrs = CardData.intToAttrs(x);
         }
     }
 
@@ -40,7 +40,7 @@ class Sqdat {
     }
 }
 
-class SqdatAry {
+class CardAry {
     constructor(ary) {
         if (!ary) ary = [];
         this.ary = ary;
@@ -50,8 +50,8 @@ class SqdatAry {
         return this.ary.length
     }
 
-    push(sqdat) {
-        this.ary.push(sqdat);
+    push(carddata) {
+        this.ary.push(carddata);
     }
 
     isTrip(ia=0, ib=1, ic=2) {
@@ -68,9 +68,9 @@ class SqdatAry {
     tripFinish(ia, ib) {
         let fin=[];
         for (let n=0; n<4; n++) {
-            fin.push(SqdatAry.attrFinish(this.ary[ia].attr(n), this.ary[ib].attr(n)));
+            fin.push(CardAry.attrFinish(this.ary[ia].attr(n), this.ary[ib].attr(n)));
         }
-        return new Sqdat(fin);
+        return new CardData(fin);
     }
 
     // return boolean for whether ary includes a triplet
@@ -91,8 +91,8 @@ class SqdatAry {
         return null;
     }
 
-    replace(idx, sqdat) {
-        this.ary[idx] = sqdat;
+    replace(idx, carddata) {
+        this.ary[idx] = carddata;
     }
     
     delete(idx) {
@@ -105,7 +105,7 @@ class SqdatAry {
     }
 }
 
-class SqdatGrid extends SqdatAry {
+class CardGrid extends CardAry {
     constructor(srcary) {
         super();
         this.source = srcary;
@@ -128,5 +128,5 @@ class SqdatGrid extends SqdatAry {
     }
 }
 
-export {SqdatGrid, SqdatAry, Sqdat};
+export {CardGrid, CardAry, CardData};
 
