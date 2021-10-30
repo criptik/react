@@ -1,19 +1,23 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import NumericInput from 'react-numeric-input';
+// import NumericInput from 'react-numeric-input';
 import './index.css';
-// var _ = require("underscore");
 import * as _ from 'underscore';
-import {CardGrid, CardAry, CardData} from './carddata.js';
-import * as assert from 'assert';
+import {CardGrid, CardData} from './carddata.js';
+// import * as assert from 'assert';
 
-function Square(props) {
-    console.log(props);
-    return (
-        <button style={{backgroundColor: props.highlight ? "Pink" : "#fff"}} className="square" onClick={props.onClick}>
-          {props.value.asint}
-        </button>
-    );
+class Square extends React.Component {
+    render() {
+        console.log('start render Square');
+        console.log(this.props);
+        console.log('end render Square');
+        let attrStr = this.props.value.attrs.join("");
+        return (
+            <button style={{border: this.props.value.highlight ? "3px solid Red" : "1px solid #999"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
+              {attrStr}
+            </button>
+        );
+    }
 }
 
 class Board extends React.Component {
@@ -21,6 +25,7 @@ class Board extends React.Component {
         return (
             <Square
               key={i}
+              index={i}
               value={this.props.grid.ary[i]}
               onClick={(i) => this.props.onClick(i)}
             />
@@ -64,19 +69,47 @@ class Game extends React.Component {
             this.state.grid.pushFromSource();
         }
         console.log(this.state.grid);
-        
+
+        this.state.clickList = [];
+        this.state.clickStatus = '';
     }
 
     handleClick(i) {
         console.log(`click on square ${i}`);
+        let newclist = this.state.clickList;
+        let newgrid = this.state.grid;
+        if (newclist.includes(i)) {
+            // remove from clicklist and unhighlight
+            newclist.splice(newclist.indexOf(i),1);
+            newgrid.ary[i].highlight = false;
+        }
+        else {
+            newclist.push(i);
+            newgrid.ary[i].highlight = true;
+        }
+        let newClickStatus = '';
+        if (newclist.length === 3) {
+            // check if we have a triple
+            let isTrip = newgrid.isTrip(newclist[0], newclist[1], newclist[2]);
+            
+            newClickStatus = `${newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
+            newclist.forEach(idx => newgrid.ary[idx].highlight = false);
+            newclist = [];
+        }
+        this.setState({
+            clickList: newclist,
+            grid: newgrid,
+            clickStatus: newClickStatus,
+        });
     }
     
     initBoard() {
     }
     
     render() {
-        let status = 'Status';
-        let showDbg = false;
+        let status = `Status:  ClickList ${this.state.clickList}  ${this.state.clickStatus}`;
+        console.log(status);
+        // let showDbg = false;
         return (
             <div>
               Triples App

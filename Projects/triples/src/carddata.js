@@ -16,6 +16,7 @@ class CardData {
             this.asint = x;
             this.attrs = CardData.intToAttrs(x);
         }
+        this.highlight = false;
     }
 
     static intToAttrs(i) {
@@ -55,7 +56,7 @@ class CardAry {
     }
 
     isTrip(ia=0, ib=1, ic=2) {
-        let valid = arrayEquals(this.tripFinish(ia, ib), this.ary[ic]);
+        let valid = (this.tripFinish(ia, ib).asint === this.ary[ic].asint);
         return(valid);
     }
 
