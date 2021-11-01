@@ -17,7 +17,7 @@ function drawTriangle(ctx, ctrx, ctry, sidelen) {
     ctx.closePath();
     ctx.stroke();
     ctx.fill();
-    console.log(`triangle top at ${topx}, ${topy}`);
+    // console.log(`triangle top at ${topx}, ${topy}`);
 }
 
 function drawSquare(ctx, ctrx, ctry, sidelen) {
@@ -25,13 +25,19 @@ function drawSquare(ctx, ctrx, ctry, sidelen) {
     let topy = ctry - sidelen/2;
     ctx.fillRect(topx, topy, sidelen, sidelen);
     ctx.strokeRect(topx, topy, sidelen, sidelen);
-    console.log(`square at ${topx}, ${topy}`);
+    // console.log(`square at ${topx}, ${topy}`);
 }
 
+function drawCircle(ctx, ctrx, ctry, diam) {
+    ctx.beginPath();
+    ctx.arc(ctrx, ctry, diam/2.0, 0, 2 * Math.PI, false);
+    ctx.stroke();
+    ctx.fill();
+}
 const { createCanvas } = require("canvas");
 
-const width = 1200;
-const height = 620;
+const width = 700;
+const height = 1500;
 
 const canvas = createCanvas(width, height);
 // Once the canvas is created, retrieve the context of the canvas by
@@ -55,12 +61,9 @@ colors.forEach((color) => {
 
 let yloc = 100;
 let sidelen = 80;
-ctx.lineWidth = 3;
+ctx.lineWidth = 4;
 colors.forEach((color) => {
-    ctx.fillStyle = stripePatMap.get(color);
     ctx.strokeStyle = color;
-    let hgt = Math.sqrt(3) * sidelen / 2.0;
-    drawSquare(ctx, 500, yloc, hgt);
 
     ctx.fillStyle = stripePatMap.get(color);
     drawTriangle(ctx, 100, yloc, 80);
@@ -70,23 +73,22 @@ colors.forEach((color) => {
     drawTriangle(ctx, 300, yloc, 80);
     yloc += 150;
 });
-
-// You can add texts, colors, or images to the context so it will be
-// generated to the output image. Let’s start by adding yellow
-// background color to the image by using the fillRect() method:
-if (false) {
-    ctx.fillStyle = "yellow";
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.fillStyle = "#000";
-    ctx.font = "72px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Hello, World!", 400, 120);
-    
-    drawTriangle(ctx, 100, 100, 60);
-    drawTriangle(ctx, 200, 100, 30);
-    drawTriangle(ctx, 300, 100, 45);
-}
+colors.forEach((color) => {
+    ctx.strokeStyle = color;
+    let hgt = Math.sqrt(3) * sidelen / 2.0;
+    ctx.fillStyle = stripePatMap.get(color);
+    drawSquare(ctx, 150, yloc, hgt);
+    ctx.fillStyle = color;
+    drawSquare(ctx, 250, yloc, hgt);
+    yloc += 150;
+});
+colors.forEach((color) => {
+    ctx.strokeStyle = color;
+    ctx.fillStyle = stripePatMap.get(color);
+    let diam = 80;
+    drawCircle(ctx, 200, yloc, diam);
+    yloc += 150;
+});
 
 // To generate the image, you need to transform the canvas to a buffer
 // that can be written to an output using the toBuffer() method:
