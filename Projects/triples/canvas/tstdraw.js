@@ -34,7 +34,8 @@ function drawCircle(ctx, ctrx, ctry, diam) {
     ctx.stroke();
     ctx.fill();
 }
-const { createCanvas } = require("canvas");
+import canvasPkg from "canvas";
+const {createCanvas} = canvasPkg;
 
 const width = 700;
 const height = 1500;
@@ -97,7 +98,7 @@ const buffer = canvas.toBuffer("image/png");
 
 // Finally, you just need to write the output using fs.writeFileSync() method:
 
-const fs = require("fs");
+import fs from "fs";
 fs.writeFileSync("./image.png", buffer);
 
 // An image named image.png will be generated in your current
