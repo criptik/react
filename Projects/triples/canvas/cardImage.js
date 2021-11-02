@@ -10,11 +10,62 @@ const {createCanvas} = canvasPkg;
 import fs from "fs";
 import process from "process";
 
+/** @abstract **/
+class Shape {
+    constructor() {
+        if (new.target == Shape) {
+            throw new TypeError('cannot instantiate Shape class');
+            process.exit(1);
+        }
+    // draw method must be overridden
+    // draw(ctx, ctrx, ctry, sidelen) {}
+        if (this.draw === undefined) {
+            throw new TypeError(`class ${this.constructor.name} did not implement draw method`);
+        }
+    }
+}
+
+class Triangle extends Shape {
+    draw(ctx, ctrx, ctry, sidelen) {
+        ctx.beginPath();
+        let hgt = Math.sqrt(3) * sidelen / 2.0;
+        let topx = ctrx;
+        let topy = ctry - hgt/2;
+        ctx.moveTo(topx, topy);
+        ctx.lineTo(topx + sidelen/2, topy + hgt);
+        ctx.lineTo(topx - sidelen/2, topy + hgt);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        // console.log(`triangle top at ${topx}, ${topy}`);
+    }
+}
+
+class Square extends Shape {
+    draw(ctx, ctrx, ctry, sidelen) {
+        let topx = ctrx - sidelen/2;
+        let topy = ctry - sidelen/2;
+        ctx.fillRect(topx, topy, sidelen, sidelen);
+        ctx.strokeRect(topx, topy, sidelen, sidelen);
+        // console.log(`square at ${topx}, ${topy}`);
+    }
+}
+
+class Circle extends Shape {
+    draw(ctx, ctrx, ctry, diam) {
+        ctx.beginPath();
+        ctx.arc(ctrx, ctry, diam/2.0, 0, 2 * Math.PI, false);
+        ctx.stroke();
+        ctx.fill();
+    }
+}
+
 class CardImage {
     constructor(attrs) {
         const width = 700;
-        const height = 1500;
-
+        const height = 12000;
+        [this.count, this.color, this.fill, this.shape] = attrs;
+        
         const canvas = createCanvas(width, height);
         // Once the canvas is created, retrieve the context of the canvas by
         // using the getContext() method:
@@ -40,38 +91,7 @@ class CardImage {
         });
     }
     
-    // the following shape drawing functions all take a center x,y and sidelen
-    drawTriangle(ctrx, ctry, sidelen) {
-        let ctx = this.ctx;
-        ctx.beginPath();
-        let hgt = Math.sqrt(3) * sidelen / 2.0;
-        let topx = ctrx;
-        let topy = ctry - hgt/2;
-        ctx.moveTo(topx, topy);
-        ctx.lineTo(topx + sidelen/2, topy + hgt);
-        ctx.lineTo(topx - sidelen/2, topy + hgt);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fill();
-        // console.log(`triangle top at ${topx}, ${topy}`);
-    }
 
-    drawSquare(ctrx, ctry, sidelen) {
-        let ctx = this.ctx;
-        let topx = ctrx - sidelen/2;
-        let topy = ctry - sidelen/2;
-        ctx.fillRect(topx, topy, sidelen, sidelen);
-        ctx.strokeRect(topx, topy, sidelen, sidelen);
-        // console.log(`square at ${topx}, ${topy}`);
-    }
-
-    drawCircle(ctrx, ctry, diam) {
-        let ctx = this.ctx;
-        ctx.beginPath();
-        ctx.arc(ctrx, ctry, diam/2.0, 0, 2 * Math.PI, false);
-        ctx.stroke();
-        ctx.fill();
-    }
     // To generate the image, you need to transform the canvas to a buffer
     // that can be written to an output using the toBuffer() method:
     writeImage(imageFileName) {
@@ -82,42 +102,41 @@ class CardImage {
     
 }
 
-// static properties
+// static properties of CardImage class
 CardImage.colors = ['red', 'blue', 'lime'];
 CardImage.stripePatMap = null;
 
 // test Code starts here
+
 let yloc = 100;
 let sidelen = 80;
 let cimg = new CardImage([2, 0, 0, 0]);
 let ctx = cimg.ctx;
-function callShaper(shaperIdx, ctrx, ctry, sidelen) {
-    switch(shaperIdx) {
-    case 0:
-        cimg.drawTriangle(ctrx, ctry, sidelen);
-        break;
-    case 1:
-        cimg.drawSquare(ctrx, ctry, sidelen);
-        break;
-    case 2:
-        cimg.drawCircle(ctrx, ctry, sidelen);
-        break;
-    default:
-        process.exit();
-    }    
+if (false) {
+    let s = new Triangle();
+    s.draw(ctx, 100, 100, 50);
+    new Square().draw(ctx, 200, 100, 50);
+    new Circle().draw(ctx, 300, 100, 50);
+    cimg.writeImage('./tst.png');
+    process.exit();
 }
 
-[0, 1, 2].forEach((shaperIdx) => {
+let cardtot = 0;
+[new Triangle(), new Square(), new Circle()].forEach((shaper) => {
     CardImage.colors.forEach((color) => {
-        ctx.strokeStyle = color;
-        ctx.fillStyle = CardImage.stripePatMap.get(color);
-        callShaper(shaperIdx, 100, yloc, sidelen);
-        ctx.fillStyle = color;
-        callShaper(shaperIdx, 200, yloc, sidelen);
-        ctx.fillStyle = 'white';
-        callShaper(shaperIdx, 300, yloc, sidelen);
-        yloc += 150;
+        [CardImage.stripePatMap.get(color), color, 'white'].forEach(fillstyle => {
+            [[100, 200, 300], [150, 250], [200]].forEach((xlocAry) => {
+                xlocAry.forEach( (xloc) => {
+                    ctx.strokeStyle = color;
+                    ctx.fillStyle = fillstyle;
+                    shaper.draw(ctx, xloc, yloc, sidelen);
+                });
+                cardtot++;
+                yloc += 150;
+            });
+        });
     });
 });
 
 cimg.writeImage('./tst.png');
+console.log (`${cardtot} cards created`);
