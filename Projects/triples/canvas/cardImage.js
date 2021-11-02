@@ -8,6 +8,7 @@
 import canvasPkg from "canvas";
 const {createCanvas} = canvasPkg;
 import fs from "fs";
+import process from "process";
 
 class CardImage {
     constructor(attrs) {
@@ -90,39 +91,33 @@ let yloc = 100;
 let sidelen = 80;
 let cimg = new CardImage([2, 0, 0, 0]);
 let ctx = cimg.ctx;
-let shapersAry = [cimg.drawTriangle, cimg.drawSquare, cimg.drawCircle];
+function callShaper(shaperIdx, ctrx, ctry, sidelen) {
+    switch(shaperIdx) {
+    case 0:
+        cimg.drawTriangle(ctrx, ctry, sidelen);
+        break;
+    case 1:
+        cimg.drawSquare(ctrx, ctry, sidelen);
+        break;
+    case 2:
+        cimg.drawCircle(ctrx, ctry, sidelen);
+        break;
+    default:
+        process.exit();
+    }    
+}
 
-CardImage.colors.forEach((color) => {
-    ctx.strokeStyle = color;
-    ctx.fillStyle = CardImage.stripePatMap.get(color);
-    cimg.drawTriangle(100, yloc, sidelen);
-    ctx.fillStyle = color;
-    cimg.drawTriangle(200, yloc, sidelen);
-    ctx.fillStyle = 'white';
-    cimg.drawTriangle(300, yloc, sidelen);
-    yloc += 150;
-});
-CardImage.colors.forEach((color) => {
-    ctx.strokeStyle = color;
-
-    ctx.fillStyle = CardImage.stripePatMap.get(color);
-    cimg.drawSquare(100, yloc, sidelen);
-    ctx.fillStyle = color;
-    cimg.drawSquare(200, yloc, sidelen);
-    ctx.fillStyle = 'white';
-    cimg.drawSquare(300, yloc, sidelen);
-    yloc += 150;
-});
-CardImage.colors.forEach((color) => {
-    ctx.strokeStyle = color;
-
-    ctx.fillStyle = CardImage.stripePatMap.get(color);
-    cimg.drawCircle(100, yloc, sidelen);
-    ctx.fillStyle = color;
-    cimg.drawCircle(200, yloc, sidelen);
-    ctx.fillStyle = 'white';
-    cimg.drawCircle(300, yloc, sidelen);
-    yloc += 150;
+[0, 1, 2].forEach((shaperIdx) => {
+    CardImage.colors.forEach((color) => {
+        ctx.strokeStyle = color;
+        ctx.fillStyle = CardImage.stripePatMap.get(color);
+        callShaper(shaperIdx, 100, yloc, sidelen);
+        ctx.fillStyle = color;
+        callShaper(shaperIdx, 200, yloc, sidelen);
+        ctx.fillStyle = 'white';
+        callShaper(shaperIdx, 300, yloc, sidelen);
+        yloc += 150;
+    });
 });
 
 cimg.writeImage('./tst.png');
