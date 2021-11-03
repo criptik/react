@@ -8,13 +8,11 @@ import {CardGrid, CardData} from './carddata.js';
 
 class Square extends React.Component {
     render() {
-        console.log('start render Square');
-        console.log(this.props);
-        console.log('end render Square');
-        let attrStr = this.props.value.attrs.join("");
+        // console.log(this.props);
+        // let attrStr = this.props.value.attrs.join("");
         return (
             <button style={{border: this.props.value.highlight ? "3px solid Red" : "1px solid #999"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
-              {attrStr}
+              <img alt="missing" src={this.props.value.dataURL} />
             </button>
         );
     }
@@ -68,14 +66,14 @@ class Game extends React.Component {
         for (let i=0; i<12; i++) {
             this.state.grid.pushFromSource();
         }
-        console.log(this.state.grid);
+        // console.log(this.state.grid);
 
         this.state.clickList = [];
         this.state.clickStatus = '';
     }
 
     handleClick(i) {
-        console.log(`click on square ${i}`);
+        // console.log(`click on square ${i}`);
         let newclist = this.state.clickList;
         let newgrid = this.state.grid;
         if (newclist.includes(i)) {
@@ -108,7 +106,7 @@ class Game extends React.Component {
     
     render() {
         let status = `Status:  ClickList ${this.state.clickList}  ${this.state.clickStatus}`;
-        console.log(status);
+        // console.log(status);
         // let showDbg = false;
         return (
             <div>

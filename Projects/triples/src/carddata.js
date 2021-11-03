@@ -1,3 +1,5 @@
+import CardImage from "../src/cardImage.js";
+
 function arrayEquals(a, b) {
     return Array.isArray(a) &&
         Array.isArray(b) &&
@@ -17,6 +19,11 @@ class CardData {
             this.attrs = CardData.intToAttrs(x);
         }
         this.highlight = false;
+        // build the card Image
+        this.cimg = new CardImage(this.attrs);
+        this.cimg.drawCard();
+        this.dataURL = this.cimg.canvas.toDataURL();
+        console.log(this);
     }
 
     static intToAttrs(i) {

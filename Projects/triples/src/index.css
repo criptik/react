@@ -23,14 +23,14 @@ ol, ul {
   float: left;
   font-size: 8px;
   font-weight: bold;
-  line-height: 34px;
-  height: 34px;
+  /* line-height: 34px; */
   margin-right: 10px;
   margin-top: 10px;
   padding: 0;
-  text-align: center;
-  width: 34px;
+  /* text-align: center; */
 }
+/*  height: 60px;  width: 130px;  */
+
 
 .square:focus {
   outline: none;

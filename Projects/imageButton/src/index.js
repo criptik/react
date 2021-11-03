@@ -28,13 +28,13 @@ class Base extends React.Component {
         this.state.colors = ['red', 'green', 'yellow'];
 
         this.state.colors.forEach((color) => {
-            const canvas = createCanvas(60, 60);
+            const canvas = createCanvas(30, 30);
             const ctx = canvas.getContext("2d");
             ctx.strokeStyle = 'blue';
             ctx.lineWidth = 2;
             ctx.fillStyle = color;
-            ctx.fillRect(10, 10, 26, 26);
-            ctx.strokeRect(4,4, 50, 50);
+            ctx.fillRect(10, 10, 16, 16);
+            ctx.strokeRect(4,4, 25, 25);
             ctx.closePath();
             let cidx = this.state.colors.indexOf(color);
             this.state.canvasURL[cidx] = canvas.toDataURL();

@@ -5,21 +5,20 @@
 // canvas as required. This will be the size of your image output
 // later.
 
-import canvasPkg from "canvas";
-const {createCanvas} = canvasPkg;
 import fs from "fs";
 import process from "process";
-import child_process from "child_process";
+// import child_process from "child_process";
+import canvasPkg from "canvas";
+const {createCanvas} = canvasPkg;
 
 /** @abstract **/
 class Shape {
     constructor() {
-        if (new.target == Shape) {
+        if (new.target === Shape) {
             throw new TypeError('cannot instantiate Shape class');
-            process.exit(1);
         }
-    // draw method must be overridden
-    // draw(ctx, ctrx, ctry, sidelen) {}
+        // draw method must be overridden
+        // draw(ctx, ctrx, ctry, sidelen) {}
         if (this.draw === undefined) {
             throw new TypeError(`class ${this.constructor.name} did not implement draw method`);
         }
@@ -45,6 +44,7 @@ class Triangle extends Shape {
 
 class Square extends Shape {
     draw(ctx, ctrx, ctry, sidelen) {
+        sidelen -= 3;
         let topx = ctrx - sidelen/2;
         let topy = ctry - sidelen/2;
         ctx.fillRect(topx, topy, sidelen, sidelen);
@@ -65,7 +65,7 @@ class Circle extends Shape {
 class CardImage {
     constructor(attrs) {
         const width = 120;
-        const height = 50;
+        const height = 45;
         [this.count, this.color, this.fill, this.shape] = attrs;
         
         const canvas = createCanvas(width, height);
@@ -79,7 +79,7 @@ class CardImage {
         if (CardImage.stripePatMap === null) {
             this.buildStripePatMap();
         }
-        this.ctx.lineWidth = 4;
+        this.ctx.lineWidth = 3;
     }
 
     drawCard() {
@@ -92,7 +92,7 @@ class CardImage {
         xlocAry.forEach( (xloc) => {
             ctx.strokeStyle = color;
             ctx.fillStyle = fillstyle;
-            shaper.draw(ctx, xloc, 25, 33);
+            shaper.draw(ctx, xloc, 25, 30);
         });
     }
     
