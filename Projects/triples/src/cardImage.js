@@ -9,6 +9,7 @@ import canvasPkg from "canvas";
 const {createCanvas} = canvasPkg;
 import fs from "fs";
 import process from "process";
+import child_process from "child_process";
 
 /** @abstract **/
 class Shape {
@@ -27,6 +28,7 @@ class Shape {
 
 class Triangle extends Shape {
     draw(ctx, ctrx, ctry, sidelen) {
+        sidelen -= 2;
         ctx.beginPath();
         let hgt = Math.sqrt(3) * sidelen / 2.0;
         let topx = ctrx;
@@ -62,8 +64,8 @@ class Circle extends Shape {
 
 class CardImage {
     constructor(attrs) {
-        const width = 700;
-        const height = 12000;
+        const width = 120;
+        const height = 50;
         [this.count, this.color, this.fill, this.shape] = attrs;
         
         const canvas = createCanvas(width, height);
@@ -71,6 +73,8 @@ class CardImage {
         // using the getContext() method:
 
         this.ctx = canvas.getContext("2d");
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillRect(0, 0, width, height);
         this.canvas = canvas;
         if (CardImage.stripePatMap === null) {
             this.buildStripePatMap();
@@ -78,8 +82,22 @@ class CardImage {
         this.ctx.lineWidth = 4;
     }
 
+    drawCard() {
+        const xlocArys = [[60], [40, 80], [20, 60, 100]];
+        const xlocAry = xlocArys[this.count];
+        let color = CardImage.colors[this.color];
+        let fillstyle = [CardImage.stripePatMap.get(color), color, 'white'][this.fill];
+        let shaper = [new Triangle(), new Square(), new Circle()][this.shape];
+        let ctx = this.ctx;
+        xlocAry.forEach( (xloc) => {
+            ctx.strokeStyle = color;
+            ctx.fillStyle = fillstyle;
+            shaper.draw(ctx, xloc, 25, 33);
+        });
+    }
+    
     buildStripePatMap() {
-        const patsize = 4;
+        const patsize = 3;
         CardImage.stripePatMap = new Map();
         CardImage.colors.forEach((color) => {
             const patcanvas = createCanvas(patsize, patsize);
@@ -106,37 +124,4 @@ class CardImage {
 CardImage.colors = ['red', 'blue', 'lime'];
 CardImage.stripePatMap = null;
 
-// test Code starts here
-
-let yloc = 100;
-let sidelen = 80;
-let cimg = new CardImage([2, 0, 0, 0]);
-let ctx = cimg.ctx;
-if (false) {
-    let s = new Triangle();
-    s.draw(ctx, 100, 100, 50);
-    new Square().draw(ctx, 200, 100, 50);
-    new Circle().draw(ctx, 300, 100, 50);
-    cimg.writeImage('./tst.png');
-    process.exit();
-}
-
-let cardtot = 0;
-[new Triangle(), new Square(), new Circle()].forEach((shaper) => {
-    CardImage.colors.forEach((color) => {
-        [CardImage.stripePatMap.get(color), color, 'white'].forEach(fillstyle => {
-            [[100, 200, 300], [150, 250], [200]].forEach((xlocAry) => {
-                xlocAry.forEach( (xloc) => {
-                    ctx.strokeStyle = color;
-                    ctx.fillStyle = fillstyle;
-                    shaper.draw(ctx, xloc, yloc, sidelen);
-                });
-                cardtot++;
-                yloc += 150;
-            });
-        });
-    });
-});
-
-cimg.writeImage('./tst.png');
-console.log (`${cardtot} cards created`);
+export default CardImage;
