@@ -4,28 +4,17 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import * as _ from 'underscore';
 import {CardGrid, CardData} from './carddata.js';
-import CardImage from './cardImage.js';
 // import * as assert from 'assert';
 
 class Square extends React.Component {
     render() {
         // console.log(this.props);
         // let attrStr = this.props.value.attrs.join("");
-        if (this.props.value !== null) {
-            return (
-                <button style={{border: this.props.value.highlight ? "3px solid Red" : "1px solid #999"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
-                  <img alt="missing" src={this.props.value.dataURL} />
-                </button>
-            );
-        }
-        else {
-            // null value is a special case for blankCard image
-            return (
-                <button style={{border: "3px solid Red"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
-                  <img alt="missing" src={CardImage.blankCard.canvas.toDataURL()} />
-                </button>
-            );
-        }
+        return (
+            <button style={{border: this.props.value.highlight ? "3px solid Red" : "1px solid #999"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
+              <img alt="missing" src={this.props.value.dataURL} />
+            </button>
+        );
     }
 }
 
@@ -115,7 +104,7 @@ class Game extends React.Component {
                     // normal grid size, refill from source
                     // but first for a short time, show blank
                     if (newgrid.length() <= 12) {
-                        newclist.forEach((idx) =>  newgrid.ary[idx] = null);
+                        newclist.forEach((idx) =>  newgrid.fillWithBlank(idx));
                         thisObj.setState({
                             grid: newgrid,
                         });

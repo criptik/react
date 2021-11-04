@@ -125,6 +125,4 @@ class CardImage {
 CardImage.colors = ['red', 'blue', 'lime'];
 CardImage.stripePatMap = null;
 
-CardImage.blankCard = new CardImage(null);
-
 export default CardImage;

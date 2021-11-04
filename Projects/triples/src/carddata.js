@@ -10,7 +10,10 @@ function arrayEquals(a, b) {
 
 class CardData {
     constructor(x) {
-        if (Array.isArray(x)) {
+        if (x === null) {
+            this.attrs = this.asint = x;
+        }
+        else if (Array.isArray(x)) {
             this.attrs = x;
             this.asint = CardData.attrsToInt(x);
         }
@@ -21,9 +24,9 @@ class CardData {
         this.highlight = false;
         // build the card Image
         this.cimg = new CardImage(this.attrs);
-        this.cimg.drawCard();
+        if (this.attrs !== null) this.cimg.drawCard();
         this.dataURL = this.cimg.canvas.toDataURL();
-        console.log(this);
+        // console.log(this);
     }
 
     static intToAttrs(i) {
@@ -119,6 +122,7 @@ class CardGrid extends CardAry {
         this.source = srcary;
         this.minrows = 4;
         this.cols = 3;
+        this.blankCard = new CardData(null);
     }
 
     pushFromSource() {
@@ -127,6 +131,10 @@ class CardGrid extends CardAry {
     
     fillFromSource(destidx) {
         this.replace(destidx, this.source.shift());
+    }
+
+    fillWithBlank(destidx) {
+        this.replace(destidx, this.blankCard);
     }
 
     backToSource(srcidx) {
