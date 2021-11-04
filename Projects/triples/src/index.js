@@ -73,68 +73,61 @@ class Game extends React.Component {
         this.numtrips = 0;
     }
 
-    handleClick(i) {
-        // console.log(`click on square ${i}`);
-        let newclist = this.state.clickList;
-        let newgrid = this.state.grid;
-        if (newclist.includes(i)) {
-            // remove from clicklist and unhighlight
-            newclist.splice(newclist.indexOf(i),1);
-            newgrid.ary[i].highlight = false;
+    click3ProcessStart() {
+        // after timeout do this logic an re-render
+        let isTrip = this.newgrid.isTrip(this.newclist[0], this.newclist[1], this.newclist[2]);
+        this.newClickStatus = `${this.newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
+        if (!isTrip) {
+            this.newclist.forEach(idx => this.newgrid.clearHighlight(idx));
+            this.newclist = [];
         }
         else {
-            newclist.push(i);
-            newgrid.ary[i].highlight = true;
+            // this logic if it is a triple
+            this.numtrips++;
+            // normal grid size, refill from source
+            // but first before refilling, show blanks for a short time
+            this.newclist.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
+            this.blankTimer = setTimeout( this.click3ProcessRefill.bind(this), 300);
         }
-        let newClickStatus = '';
-        if (newclist.length === 3) {
-            this.delayTimer = setTimeout((thisObj) => {
-                // after timeout do this logic an re-render
-                let newclist = thisObj.newclist;
-                // check if we have a triple
-                let isTrip = newgrid.isTrip(newclist[0], newclist[1], newclist[2]);
-            
-                newClickStatus = `${newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
-                if (!isTrip) {
-                    newclist.forEach(idx => newgrid.ary[idx].highlight = false);
-                    newclist = [];
-                }
-                if (isTrip) {
-                    this.numtrips++;
-                    // normal grid size, refill from source
-                    // but first for a short time, show blank
-                    if (newgrid.length() <= 12) {
-                        newclist.forEach((idx) =>  newgrid.fillWithBlank(idx));
-                        thisObj.setState({
-                            grid: newgrid,
-                        });
-                        thisObj.blankTimer = setTimeout((thisObj) => {
-                            console.log('blankTimer func');
-                            newclist.forEach((idx) =>  newgrid.fillFromSource(idx));
-                            thisObj.setState({
-                                clickList: [],
-                                clickStatus: newClickStatus,
-                                grid: newgrid,
-                            });
-                            clearTimeout(thisObj.blankTimer);
-                        }, 300, thisObj);
-                    }
-                }
-
-                thisObj.setState({
-                    clickList: newclist,
-                    clickStatus: newClickStatus,
-                    grid: newgrid,
-                });
-                clearTimeout(thisObj.delayTimer);
-            }, 300, this);
-        }
-        console.log(newclist);
-        this.newclist = newclist;
         this.setState({
-            clickList: newclist,
-            grid : newgrid,
-            clickStatus: newClickStatus,            
+            clickList: this.newclist,
+            clickStatus: this.newClickStatus,
+            grid: this.newgrid,
+        });
+        clearTimeout(this.delayTimer);
+    }
+
+    click3ProcessRefill() {
+        this.newclist.forEach((idx) =>  this.newgrid.fillFromSource(idx));
+        clearTimeout(this.blankTimer);
+        this.setState({
+            clickList: [],
+            clickStatus: this.newClickStatus,
+            grid: this.newgrid,
+        });
+    }
+    
+    handleClick(i) {
+        // console.log(`click on square ${i}`);
+        this.newclist = this.state.clickList;
+        this.newgrid = this.state.grid;
+        if (this.newclist.includes(i)) {
+            // remove from clicklist and unhighlight
+            this.newclist.splice(this.newclist.indexOf(i),1);
+            this.newgrid.clearHighlight(i);
+        }
+        else {
+            this.newclist.push(i);
+            this.newgrid.setHighlight(i);
+        }
+        this.newClickStatus = '';
+        if (this.newclist.length === 3) {
+            this.delayTimer = setTimeout(this.click3ProcessStart.bind(this), 300);
+        }
+        this.setState({
+            clickList: this.newclist,
+            grid : this.newgrid,
+            clickStatus: this.newClickStatus,            
         });
     }
     

@@ -142,6 +142,13 @@ class CardGrid extends CardAry {
         this.delete(srcidx);
         this.source.unshift(dat);
     }
+
+    setHighlight(idx) {
+        this.ary[idx].highlight = true;
+    }
+    clearHighlight(idx) {
+        this.ary[idx].highlight = false;
+    }
 }
 
 export {CardGrid, CardAry, CardData};
