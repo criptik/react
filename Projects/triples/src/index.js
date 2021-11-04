@@ -87,17 +87,34 @@ class Game extends React.Component {
         }
         let newClickStatus = '';
         if (newclist.length === 3) {
-            // check if we have a triple
-            let isTrip = newgrid.isTrip(newclist[0], newclist[1], newclist[2]);
+            this.delayTimer = setTimeout((thisObj) => {
+                // after timeout do this logic an re-render
+                let newclist = thisObj.newclist;
+                // check if we have a triple
+                let isTrip = newgrid.isTrip(newclist[0], newclist[1], newclist[2]);
             
-            newClickStatus = `${newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
-            newclist.forEach(idx => newgrid.ary[idx].highlight = false);
-            newclist = [];
+                newClickStatus = `${newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
+                newclist.forEach(idx => newgrid.ary[idx].highlight = false);
+                // normal grid size, refill from source
+                if (newgrid.length() <= 12) {
+                    newclist.forEach((idx) =>  newgrid.fillFromSource(idx));
+                }
+
+                newclist = [];
+                thisObj.setState({
+                    clickList: newclist,
+                    clickStatus: newClickStatus,
+                    grid: newgrid,
+                });
+                clearTimeout(thisObj.delayTimer);
+            }, 300, this);
         }
+        console.log(newclist);
+        this.newclist = newclist;
         this.setState({
             clickList: newclist,
-            grid: newgrid,
-            clickStatus: newClickStatus,
+            grid : newgrid,
+            clickStatus: newClickStatus,            
         });
     }
     
