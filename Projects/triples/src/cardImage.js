@@ -66,8 +66,9 @@ class CardImage {
     constructor(attrs) {
         const width = 120;
         const height = 45;
-        [this.count, this.color, this.fill, this.shape] = attrs;
-        
+        if (attrs !== null) {
+            [this.count, this.color, this.fill, this.shape] = attrs;
+        }
         const canvas = createCanvas(width, height);
         // Once the canvas is created, retrieve the context of the canvas by
         // using the getContext() method:
@@ -123,5 +124,7 @@ class CardImage {
 // static properties of CardImage class
 CardImage.colors = ['red', 'blue', 'lime'];
 CardImage.stripePatMap = null;
+
+CardImage.blankCard = new CardImage(null);
 
 export default CardImage;

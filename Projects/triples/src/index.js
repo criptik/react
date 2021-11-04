@@ -4,17 +4,28 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import * as _ from 'underscore';
 import {CardGrid, CardData} from './carddata.js';
+import CardImage from './cardImage.js';
 // import * as assert from 'assert';
 
 class Square extends React.Component {
     render() {
         // console.log(this.props);
         // let attrStr = this.props.value.attrs.join("");
-        return (
-            <button style={{border: this.props.value.highlight ? "3px solid Red" : "1px solid #999"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
-              <img alt="missing" src={this.props.value.dataURL} />
-            </button>
-        );
+        if (this.props.value !== null) {
+            return (
+                <button style={{border: this.props.value.highlight ? "3px solid Red" : "1px solid #999"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
+                  <img alt="missing" src={this.props.value.dataURL} />
+                </button>
+            );
+        }
+        else {
+            // null value is a special case for blankCard image
+            return (
+                <button style={{border: "3px solid Red"}} className="square" onClick={() => this.props.onClick(this.props.index)}>
+                  <img alt="missing" src={CardImage.blankCard.canvas.toDataURL()} />
+                </button>
+            );
+        }
     }
 }
 
@@ -70,6 +81,7 @@ class Game extends React.Component {
 
         this.state.clickList = [];
         this.state.clickStatus = '';
+        this.numtrips = 0;
     }
 
     handleClick(i) {
@@ -94,13 +106,32 @@ class Game extends React.Component {
                 let isTrip = newgrid.isTrip(newclist[0], newclist[1], newclist[2]);
             
                 newClickStatus = `${newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
-                newclist.forEach(idx => newgrid.ary[idx].highlight = false);
-                // normal grid size, refill from source
-                if (newgrid.length() <= 12) {
-                    newclist.forEach((idx) =>  newgrid.fillFromSource(idx));
+                if (!isTrip) {
+                    newclist.forEach(idx => newgrid.ary[idx].highlight = false);
+                    newclist = [];
+                }
+                if (isTrip) {
+                    this.numtrips++;
+                    // normal grid size, refill from source
+                    // but first for a short time, show blank
+                    if (newgrid.length() <= 12) {
+                        newclist.forEach((idx) =>  newgrid.ary[idx] = null);
+                        thisObj.setState({
+                            grid: newgrid,
+                        });
+                        thisObj.blankTimer = setTimeout((thisObj) => {
+                            console.log('blankTimer func');
+                            newclist.forEach((idx) =>  newgrid.fillFromSource(idx));
+                            thisObj.setState({
+                                clickList: [],
+                                clickStatus: newClickStatus,
+                                grid: newgrid,
+                            });
+                            clearTimeout(thisObj.blankTimer);
+                        }, 300, thisObj);
+                    }
                 }
 
-                newclist = [];
                 thisObj.setState({
                     clickList: newclist,
                     clickStatus: newClickStatus,
@@ -122,7 +153,8 @@ class Game extends React.Component {
     }
     
     render() {
-        let status = `Status:  ClickList ${this.state.clickList}  ${this.state.clickStatus}`;
+        let status = `ClickList ${this.state.clickList}  ${this.state.clickStatus}`;
+        let tripsStatus = `Triples Found: ${this.numtrips}`; 
         // console.log(status);
         // let showDbg = false;
         return (
@@ -139,6 +171,8 @@ class Game extends React.Component {
                 <div className="game-info">
                   <div>
                     {status}
+                    <br/>
+                    {tripsStatus}
                   </div>
                 </div>
               </div>
