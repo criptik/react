@@ -17,7 +17,7 @@ ol, ul {
   margin-bottom: 10px;
 }
 
-.square {
+.cardcomp {
   background: #fff;
   border: 1px solid #999;
   float: left;
@@ -32,11 +32,11 @@ ol, ul {
 /*  height: 60px;  width: 130px;  */
 
 
-.square:focus {
+.cardcomp:focus {
   outline: none;
 }
 
-.kbd-navigation .square:focus {
+.kbd-navigation .cardcomp:focus {
   background: #ddd;
 }
 

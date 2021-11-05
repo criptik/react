@@ -6,7 +6,7 @@
 // later.
 
 import fs from "fs";
-import process from "process";
+// import process from "process";
 // import child_process from "child_process";
 import canvasPkg from "canvas";
 const {createCanvas} = canvasPkg;
@@ -36,6 +36,7 @@ class Triangle extends Shape {
         ctx.lineTo(topx + sidelen/2, topy + hgt);
         ctx.lineTo(topx - sidelen/2, topy + hgt);
         ctx.closePath();
+        ctx.lineWidth = 3;
         ctx.stroke();
         ctx.fill();
         // console.log(`triangle top at ${topx}, ${topy}`);
@@ -47,8 +48,10 @@ class Square extends Shape {
         sidelen -= 3;
         let topx = ctrx - sidelen/2;
         let topy = ctry - sidelen/2;
+        ctx.lineWidth = 3;
         ctx.fillRect(topx, topy, sidelen, sidelen);
         ctx.strokeRect(topx, topy, sidelen, sidelen);
+        // ctx.fill();
         // console.log(`square at ${topx}, ${topy}`);
     }
 }
@@ -56,6 +59,7 @@ class Square extends Shape {
 class Circle extends Shape {
     draw(ctx, ctrx, ctry, diam) {
         ctx.beginPath();
+        ctx.lineWidth = 3;
         ctx.arc(ctrx, ctry, diam/2.0, 0, 2 * Math.PI, false);
         ctx.stroke();
         ctx.fill();
