@@ -117,11 +117,12 @@ class CardAry {
 }
 
 class CardGrid extends CardAry {
-    constructor(srcary) {
+    constructor(srcary, minrows=4, cols=3) {
         super();
         this.source = srcary;
-        this.minrows = 4;
-        this.cols = 3;
+        this.minrows = minrows;
+        this.cols = cols;
+        this.minlength = this.minrows * this.cols;
         this.blankCard = new CardData(null);
     }
 
@@ -151,15 +152,14 @@ class CardGrid extends CardAry {
     }
 
     fillUntilHasTrip(dbg=false) {
-        let minLength = this.minrows * this.cols;
-        let goalLength = minLength;
+        let goalLength = this.minlength;
         // if no triple, add one more row
         // and repeat until we have a triple
         while (true) {
             while ((this.length() < goalLength) && (this.source.length > 0)) {
                 this.fillFromSource(this.length());
             }
-            if (dbg  && goalLength > minLength) console.log(`grid length is now ${this.length()}`);
+            if (dbg  && goalLength > this.minlength) console.log(`grid length is now ${this.length()}`);
             let tripIdxs = this.includesTrip(dbg);
             if (tripIdxs !== null) return tripIdxs;
             if (dbg) console.log(`no triple found with grid length ${this.length()}`);
@@ -170,11 +170,11 @@ class CardGrid extends CardAry {
             // new goal is one more row
             goalLength += this.cols;
         }
-        return null;  // should not get this far
     }
 
     // remove the triplet indicated by the idxs array
     tripRemoveReplace(idxs, dbg=false) {
+        // console.log(idxs);
         let revsortidxs = idxs.sort((a, b) => b - a);
         if (this.source.length < 3){
             revsortidxs.forEach((idx) => {
@@ -205,11 +205,9 @@ class CardGrid extends CardAry {
             // special case, having gone from 18 to 15, let us check whether
             // a trip exists in the first 12 and if so, trim this down to 12
             // by pushing back to source
-            if ((this.length() == 15) && this.includesTrip(true, 12)) {
-                if (dbg) console.log(`special case 18 -> 15, push last row back to source`);
-                this.backToSource(14);
-                this.backToSource(13);
-                this.backToSource(12);
+            if ((this.length() > this.minlength) && this.includesTrip(true, this.minlength)) {
+                if (dbg) console.log(`special case, push last row back to source`);
+                [1,2,3].forEach(() => this.backToSource(this.length() - 1));
             }
         }
     }

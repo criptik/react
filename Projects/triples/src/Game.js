@@ -18,27 +18,37 @@ class Game extends React.Component {
         let ishuf = _.shuffle(unshuf);
         let source = ishuf.map((n) => new CardData(n));
         this.state = {};
-        this.state.grid = new CardGrid(source);
+        this.state.grid = new CardGrid(source, 4, 2);
 
-        // start by filling grid with 12
-        for (let i=0; i<12; i++) {
-            this.state.grid.pushFromSource();
+        // start by filling grid with min rows
+        // this.state.grid.minrows = 3;
+        this.lastTripFound = this.state.grid.fillUntilHasTrip();
+        this.state.containsTrip = (this.lastTripFound !== null);
+        this.autoClick = false;
+        this.pauseWithHighlightsTime = 300;
+        this.pauseWithBlanksTime = 300;
+        if (this.autoClick) {
+            this.pauseWithHighlightsTime = 1500;
+            this.pauseWithBlanksTime = 500;
+            this.autoClickProcess();
         }
-        this.state.containsTrip = (this.state.grid.includesTrip() !== null);
         // console.log(this.state.grid);
 
         this.state.clickList = [];
         this.state.clickStatus = '';
-        this.numtrips = 0;
+        this.numtrips = this.numwrong = 0;
+        this.state.gameOver = false;
     }
 
     click3ProcessStart() {
+        // console.log(this.newclist);
         // after timeout do this logic an re-render
         let isTrip = this.newgrid.isTrip(this.newclist[0], this.newclist[1], this.newclist[2]);
         this.newClickStatus = `${this.newclist} ${isTrip ? 'was a triple' : 'not a triple, try again'}`;
         if (!isTrip) {
             this.newclist.forEach(idx => this.newgrid.clearHighlight(idx));
             this.newclist = [];
+            this.numwrong++;
         }
         else {
             // this logic if it is a triple
@@ -46,7 +56,7 @@ class Game extends React.Component {
             // normal grid size, refill from source
             // but first before refilling, show blanks for a short time
             this.newclist.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
-            this.blankTimer = setTimeout( this.click3ProcessRefill.bind(this), 200);
+            this.blankTimer = setTimeout( this.click3ProcessRefill.bind(this), this.pauseWithBlanksTime);
         }
         this.setState({
             clickList: this.newclist,
@@ -57,14 +67,39 @@ class Game extends React.Component {
     }
 
     click3ProcessRefill() {
-        this.newclist.forEach((idx) =>  this.newgrid.fillFromSource(idx));
+        this.newgrid.tripRemoveReplace(this.newclist);
+        this.lastTripFound = this.newgrid.fillUntilHasTrip();
         clearTimeout(this.blankTimer);
         this.setState({
             clickList: [],
             clickStatus: this.newClickStatus,
             grid: this.newgrid,
-            containsTrip:(this.state.grid.includesTrip() !== null), 
+            containsTrip:(this.lastTripFound !== null),
+            gameOver: (this.lastTripFound === null),
         });
+        if (this.lastTripFound !== null && this.autoClick) {
+            this.autoClickProcess();
+        }
+    }
+
+    autoClickProcess() {
+        this.newgrid = this.state.grid;
+        if (this.lastTripFound === null) {
+            this.setState({
+                gameOver: true,
+                });
+        }
+        else {
+            if (false) {
+                this.setState({
+                    clickList: [],
+                    grid: this.newgrid,
+                    containsTrip:(this.lastTripFound !== null), 
+                });
+            }
+            this.state.clickList = [];
+            this.lastTripFound.forEach((idx) => this.handleClick(idx));
+        }
     }
     
     handleClick(i) {
@@ -82,7 +117,7 @@ class Game extends React.Component {
         }
         this.newClickStatus = '';
         if (this.newclist.length === 3) {
-            this.delayTimer = setTimeout(this.click3ProcessStart.bind(this), 200);
+            this.delayTimer = setTimeout(this.click3ProcessStart.bind(this), this.pauseWithHighlightsTime);
         }
         this.setState({
             clickList: this.newclist,
@@ -95,8 +130,11 @@ class Game extends React.Component {
     }
     
     render() {
-        let status = `${this.state.containsTrip} ClickList ${this.state.clickList}  ${this.state.clickStatus}`;
-        let tripsStatus = `Triples Found: ${this.numtrips}`; 
+        // let status = `${this.state.containsTrip} ClickList ${this.state.clickList}  ${this.state.clickStatus}`;
+        let tripsStatus = `Found: ${this.numtrips}`;
+        let wrongStatus = `Wrong: ${this.numwrong}`;
+        let gameStatus = (this.state.gameOver ? 'Game Over' : '');
+
         // console.log(status);
         // let showDbg = false;
         return (
@@ -112,9 +150,11 @@ class Game extends React.Component {
                 </div>
                 <div className="game-info">
                   <div>
-                    {status}
-                    <br/>
                     {tripsStatus}
+                    <br/>
+                    {wrongStatus}
+                    <br/>
+                    {gameStatus}
                   </div>
                 </div>
               </div>
