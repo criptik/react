@@ -84,7 +84,7 @@ class CardAry {
         return new CardData(fin);
     }
 
-    // return boolean for whether ary includes a triplet
+    // return set of 3 indices if ary includes a triplet, else null
     includesTrip(dbg = false, idxlimit=this.length()) {
         for (let j1=0; j1<idxlimit; j1++) {
             for (let j2=j1+1; j2<idxlimit; j2++) {
@@ -148,6 +148,70 @@ class CardGrid extends CardAry {
     }
     clearHighlight(idx) {
         this.ary[idx].highlight = false;
+    }
+
+    fillUntilHasTrip(dbg=false) {
+        let minLength = this.minrows * this.cols;
+        let goalLength = minLength;
+        // if no triple, add one more row
+        // and repeat until we have a triple
+        while (true) {
+            while ((this.length() < goalLength) && (this.source.length > 0)) {
+                this.fillFromSource(this.length());
+            }
+            if (dbg  && goalLength > minLength) console.log(`grid length is now ${this.length()}`);
+            let tripIdxs = this.includesTrip(dbg);
+            if (tripIdxs !== null) return tripIdxs;
+            if (dbg) console.log(`no triple found with grid length ${this.length()}`);
+            if (this.source.length < this.cols) {
+                // ran out of source and no trip yet
+                return null;
+            }
+            // new goal is one more row
+            goalLength += this.cols;
+        }
+        return null;  // should not get this far
+    }
+
+    // remove the triplet indicated by the idxs array
+    tripRemoveReplace(idxs, dbg=false) {
+        let revsortidxs = idxs.sort((a, b) => b - a);
+        if (this.source.length < 3){
+            revsortidxs.forEach((idx) => {
+                if (dbg) console.log(`this source < 3, deleting ${idx}`);
+                this.delete(idx);
+            });
+        }
+        // at least 3 items in this.source
+        // with no extra rows, just removed idxs from source
+        else if (this.length() <= 12) {
+            idxs.forEach((idx) =>  this.fillFromSource(idx));
+        }
+        else {
+            if (dbg) console.log('last row special idxs=', revsortidxs);
+            // delete any trip members from last row(s)
+            revsortidxs.forEach((idx) => {
+                if (idx >= 12) {
+                    this.delete(idx);
+                    if (dbg) console.log(`last row delete ${idx}, length now ${this.length()}`);
+                }
+                else {
+                    // then move remaining last row items up to other empty slots
+                    let fromidx = this.length() - 1;
+                    if (dbg) console.log(`move last row ${fromidx} to ${idx}`);
+                    this.move(fromidx, idx);
+                }
+            });
+            // special case, having gone from 18 to 15, let us check whether
+            // a trip exists in the first 12 and if so, trim this down to 12
+            // by pushing back to source
+            if ((this.length() == 15) && this.includesTrip(true, 12)) {
+                if (dbg) console.log(`special case 18 -> 15, push last row back to source`);
+                this.backToSource(14);
+                this.backToSource(13);
+                this.backToSource(12);
+            }
+        }
     }
 }
 
