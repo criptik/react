@@ -6,6 +6,9 @@ import {CardGrid, CardData} from './carddata.js';
 import Board from './Board.js';
 // import * as assert from 'assert';
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 class Game extends React.Component {
     constructor(props) {
@@ -42,7 +45,7 @@ class Game extends React.Component {
         }
     }
     
-    click3ProcessStart() {
+    async click3ProcessStart() {
         // console.log(this.clickList);
         // after timeout do this logic an re-render
         let isTrip = this.newgrid.isTrip(this.clickList[0], this.clickList[1], this.clickList[2]);
@@ -57,18 +60,17 @@ class Game extends React.Component {
             // normal grid size, refill from source
             // but first before refilling, show blanks for a short time
             this.clickList.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
-            this.blankTimer = setTimeout( this.click3ProcessRefill.bind(this), this.pauseWithBlanksTime);
+            await sleep(this.pauseWithBlanksTime);
+            this.click3ProcessRefill();
         }
         this.setState({
             grid: this.newgrid,
         });
-        clearTimeout(this.delayTimer);
     }
 
     click3ProcessRefill() {
         this.newgrid.tripRemoveReplace(this.clickList);
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
-        clearTimeout(this.blankTimer);
         this.clickList = [];
         this.setState({
             grid: this.newgrid,
@@ -93,11 +95,14 @@ class Game extends React.Component {
                 });
             }
             this.clickList = [];
-            this.lastTripFound.forEach((idx) => this.handleClick(idx));
+            this.lastTripFound.forEach(async (idx) => {
+                this.handleClick(idx);
+                await sleep(100);
+            });
         }
     }
     
-    handleClick(i) {
+    async handleClick(i) {
         // console.log(`click on square ${i}`);
         this.newgrid = this.state.grid;
         if (this.clickList.includes(i)) {
@@ -109,12 +114,13 @@ class Game extends React.Component {
             this.clickList.push(i);
             this.newgrid.setHighlight(i);
         }
-        if (this.clickList.length === 3) {
-            this.delayTimer = setTimeout(this.click3ProcessStart.bind(this), this.pauseWithHighlightsTime);
-        }
         this.setState({
             grid : this.newgrid,
         });
+        if (this.clickList.length === 3) {
+            await sleep(this.pauseWithHighlightsTime);
+            this.click3ProcessStart();
+        }
     }
     
     initBoard() {
