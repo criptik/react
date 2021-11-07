@@ -27,7 +27,7 @@ class Game extends React.Component {
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
         this.lastTripFound = this.state.grid.fillUntilHasTrip();
-        this.autoClick = true;
+        this.autoClick = false;
         this.pauseWithHighlightsTime = 300;
         this.pauseWithBlanksTime = 300;
 
@@ -81,7 +81,7 @@ class Game extends React.Component {
         }
     }
 
-    autoClickProcess() {
+    async autoClickProcess() {
         this.newgrid = this.state.grid;
         if (this.lastTripFound === null) {
             this.setState({
@@ -95,10 +95,10 @@ class Game extends React.Component {
                 });
             }
             this.clickList = [];
-            this.lastTripFound.forEach(async (idx) => {
-                this.handleClick(idx);
-                await sleep(100);
-            });
+            for (let n=0; n<3; n++) {
+                this.handleClick(this.lastTripFound[n]);
+                await sleep(500);
+            };
         }
     }
     
