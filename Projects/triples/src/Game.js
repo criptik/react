@@ -127,7 +127,9 @@ class Game extends React.Component {
     }
     
     render() {
-        let tripsStatus = `${String.fromCharCode(9745)}: ${this.numtrips} ...  ${String.fromCharCode(9746)} ${this.numwrong}`;
+        let nbsp = String.fromCharCode(160);
+        let nbspx4 = `${nbsp}${nbsp}${nbsp}${nbsp}`;
+        let tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
         let gameStatus = (this.state.gameOver ? 'Game Over' : '');
         // let showDbg = false;
         return (
@@ -142,7 +144,7 @@ class Game extends React.Component {
                   />
                 </div>
                 <div className="game-info">
-                  <div>
+                  <div style={{fontSize: "20px"}}>
                     {tripsStatus}
                     <br/>
                     {gameStatus}
