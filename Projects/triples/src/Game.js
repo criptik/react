@@ -30,7 +30,9 @@ class Game extends React.Component {
         this.autoClick = false;
         this.pauseWithHighlightsTime = 300;
         this.pauseWithBlanksTime = 300;
-
+        this.shrinkGrowTime = 50;
+        this.useShrinkGrow = true;
+        
         this.clickList = [];
         this.numtrips = this.numwrong = 0;
         this.state.gameOver = false;
@@ -57,21 +59,54 @@ class Game extends React.Component {
         else {
             // this logic if it is a triple
             this.numtrips++;
-            // normal grid size, refill from source
-            // but first before refilling, show blanks for a short time
-            this.clickList.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
-            await sleep(this.pauseWithBlanksTime);
-            this.click3ProcessRefill();
+            this.handleTripleRemoval();
         }
+        this.setGridState();
+    }
+
+    setGridState() {
         this.setState({
             grid: this.newgrid,
         });
     }
+    
+    async handleTripleRemoval() {
+        // before refilling, decrease img size
+        let imgWidths = [80, 60, 40, 20, 0];
 
-    click3ProcessRefill() {
-        this.newgrid.tripRemoveReplace(this.clickList);
+        // logic to use before actual replacement
+        if (this.useShrinkGrow) {
+            // shrinking
+            for (let widx=0; widx < imgWidths.length; widx++) {
+                let width = imgWidths[widx];
+                this.clickList.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
+                await sleep(this.shrinkGrowTime);
+                this.setGridState();
+            }
+            // actual replacement
+            let allStillThere = this.newgrid.tripRemoveReplace(this.clickList);
+            // growing
+            if (allStillThere) {
+                for (let widx=0; widx < imgWidths.length; widx++) {
+                    let width = imgWidths[imgWidths.length - 1 - widx];
+                    this.clickList.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
+                    await sleep(this.shrinkGrowTime);
+                    this.setGridState();
+                }
+            }
+        }
+        else {
+            this.clickList.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
+            await sleep(this.pauseWithBlanksTime);
+            this.setGridState();
+            // actual replacement
+            this.newgrid.tripRemoveReplace(this.clickList);
+        }
+
+        // finish up and get ready for next
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
         this.clickList = [];
+        // console.log(this.lastTripFound);
         this.setState({
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
@@ -89,15 +124,10 @@ class Game extends React.Component {
                 });
         }
         else {
-            if (false) {
-                this.setState({
-                    grid: this.newgrid,
-                });
-            }
             this.clickList = [];
             for (let n=0; n<3; n++) {
                 this.handleClick(this.lastTripFound[n]);
-                await sleep(500);
+                await sleep(100);
             };
         }
     }

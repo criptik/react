@@ -22,6 +22,7 @@ class CardData {
             this.attrs = CardData.intToAttrs(x);
         }
         this.highlight = false;
+        this.imageWidth = '80px';
         // build the card Image
         this.cimg = new CardImage(this.attrs);
         if (this.attrs !== null) this.cimg.drawCard();
@@ -102,6 +103,10 @@ class CardAry {
         return null;
     }
 
+    get(idx) {
+        return this.ary[idx];
+    }
+    
     replace(idx, carddata) {
         this.ary[idx] = carddata;
     }
@@ -151,6 +156,10 @@ class CardGrid extends CardAry {
         this.ary[idx].highlight = false;
     }
 
+    setImageWidth(idx, width) {
+        this.ary[idx].imageWidth = width;
+    }
+    
     fillUntilHasTrip(dbg=false) {
         let goalLength = this.minlength;
         // if no triple, add one more row
@@ -173,27 +182,31 @@ class CardGrid extends CardAry {
     }
 
     // remove the triplet indicated by the idxs array
+    // return true if it was replaced, false if just deleted
     tripRemoveReplace(idxs, dbg=false) {
         // console.log(idxs);
+        let retval = true;
         let revsortidxs = idxs.sort((a, b) => b - a);
         if (this.source.length < 3){
             revsortidxs.forEach((idx) => {
                 if (dbg) console.log(`this source < 3, deleting ${idx}`);
                 this.delete(idx);
             });
+            retval = false;
         }
         // at least 3 items in this.source
         // with no extra rows, just removed idxs from source
-        else if (this.length() <= 12) {
+        else if (this.length() <= this.minlength) {
             idxs.forEach((idx) =>  this.fillFromSource(idx));
         }
         else {
             if (dbg) console.log('last row special idxs=', revsortidxs);
             // delete any trip members from last row(s)
             revsortidxs.forEach((idx) => {
-                if (idx >= 12) {
+                if (idx >= this.minlength) {
                     this.delete(idx);
                     if (dbg) console.log(`last row delete ${idx}, length now ${this.length()}`);
+                    retval = false;
                 }
                 else {
                     // then move remaining last row items up to other empty slots
@@ -210,6 +223,7 @@ class CardGrid extends CardAry {
                 [1,2,3].forEach(() => this.backToSource(this.length() - 1));
             }
         }
+        return retval;
     }
 }
 
