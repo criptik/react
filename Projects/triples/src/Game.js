@@ -1,7 +1,8 @@
 import React from 'react';
+import Switch from "react-switch";
+import * as _ from 'underscore';
 // import NumericInput from 'react-numeric-input';
 import './index.css';
-import * as _ from 'underscore';
 import {CardGrid, CardData} from './carddata.js';
 import Board from './Board.js';
 // import * as assert from 'assert';
@@ -13,6 +14,17 @@ function sleep(ms) {
 class Game extends React.Component {
     constructor(props) {
         super(props);
+        this.state = {};
+        this.state.grid = new CardGrid(null, 4, 3);
+        this.state.gameOver = false
+        this.demoModeSwitchValue = false;
+    }
+
+    componentDidMount() {
+        this.startNewGame();
+    }
+
+    startNewGame() {
         // shuffle the cards 0-80
         let unshuf = [];
         for (let i=0; i<81; i++) {
@@ -21,13 +33,12 @@ class Game extends React.Component {
         let ishuf = _.shuffle(unshuf);
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
-        this.state = {};
-        this.state.grid = new CardGrid(source, 4, 3);
+        this.newgrid = new CardGrid(source, 4, 3);
 
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
-        this.lastTripFound = this.state.grid.fillUntilHasTrip();
-        this.autoClick = false;
+        this.lastTripFound = this.newgrid.fillUntilHasTrip();
+        this.autoClick = this.demoModeSwitchValue;
         this.pauseWithHighlightsTime = 300;
         this.pauseWithBlanksTime = 300;
         this.shrinkGrowTime = 50;
@@ -35,19 +46,27 @@ class Game extends React.Component {
         
         this.clickList = [];
         this.numtrips = this.numwrong = 0;
-        this.state.gameOver = false;
+        this.setState({
+            grid: this.newgrid,
+            gameOver: (this.lastTripFound === null),
+        });
+        this.checkAutoClick();
         // console.log(this.state.grid);
     }
 
-    componentDidMount() {
+    checkAutoClick() {
         if (this.autoClick) {
             this.pauseWithHighlightsTime = 1500;
             this.pauseWithBlanksTime = 500;
             this.autoClickProcess();
         }
+        else {
+            this.pauseWithHighlightsTime = 300;
+            this.pauseWithBlanksTime = 300;
+        }
     }
     
-    async click3ProcessStart() {
+    click3ProcessStart() {
         // console.log(this.clickList);
         // after timeout do this logic an re-render
         let isTrip = this.newgrid.isTrip(this.clickList[0], this.clickList[1], this.clickList[2]);
@@ -155,6 +174,13 @@ class Game extends React.Component {
     
     initBoard() {
     }
+
+    demoModeSwitchChange(checked) {
+        // console.log(checked, this);
+        this.demoModeSwitchValue = checked;
+        this.autoClick = this.demoModeSwitchValue;
+        this.checkAutoClick();
+    }
     
     render() {
         let nbsp = String.fromCharCode(160);
@@ -164,8 +190,25 @@ class Game extends React.Component {
         // let showDbg = false;
         return (
             <div>
-              Triples App
+              {`Triples App ${nbspx4}`}
+              <button
+                onClick={() => this.startNewGame()}
+              >
+                New Game
+              </button>
+              <label>
+                <span> {`${nbspx4} Demo Mode? `}</span>
+                <Switch
+                  className="react-switch"
+                  onChange={this.demoModeSwitchChange.bind(this)}
+                  id="demoModeSwitch"
+                  checked={this.demoModeSwitchValue}
+                  height={20}
+                  width={40}
+                />
+              </label>
               <p/>
+             
               <div className="game">
                 <div className="game-board">
                   <Board
