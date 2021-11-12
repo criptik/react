@@ -18,13 +18,26 @@ class Game extends React.Component {
         this.state.grid = new CardGrid(null, 4, 3);
         this.state.gameOver = false
         this.demoModeSwitchValue = false;
+        this.autoClickPromise = null;
+        this.stopAutoClick = false;
+        this.numPromise = 0;
     }
 
     componentDidMount() {
         this.startNewGame();
     }
 
-    startNewGame() {
+    async startNewGame() {
+        // set stop flag to prevent further autoclick loops
+        // then wait for current loop to finish
+        this.stopAutoClick = true;
+        // console.log(`in startNewGame, ${this.numPromise}`);
+        await this.autoClickPromise;
+        // console.log(`after await in startNewGame, ${this.numPromise}`);
+        // and turn off stop flag
+        this.stopAutoClick = false;
+        this.demoModeSwitchValue = false;
+        
         // shuffle the cards 0-80
         let unshuf = [];
         for (let i=0; i<81; i++) {
@@ -50,6 +63,7 @@ class Game extends React.Component {
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
         });
+        this.numPromise = 0;
         this.checkAutoClick();
         // console.log(this.state.grid);
     }
@@ -69,6 +83,10 @@ class Game extends React.Component {
     click3ProcessStart() {
         // console.log(this.clickList);
         // after timeout do this logic an re-render
+        if (this.clicklist.length === 0) {
+            this.setGridState();
+            return;
+        }
         let isTrip = this.newgrid.isTrip(this.clickList[0], this.clickList[1], this.clickList[2]);
         if (!isTrip) {
             this.clickList.forEach(idx => this.newgrid.clearHighlight(idx));
@@ -130,8 +148,13 @@ class Game extends React.Component {
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
         });
-        if (this.lastTripFound !== null && this.autoClick) {
-            this.autoClickProcess();
+        if (this.lastTripFound !== null && this.autoClick && !this.stopAutoClick) {
+            this.numPromise++;
+            // console.log(`before new Promise #${this.numPromise}, ${this.stopAutoClick}`);
+            this.autoClickPromise = new Promise((resolve) => {
+                this.autoClickProcess();
+                resolve();
+            });
         }
     }
 
