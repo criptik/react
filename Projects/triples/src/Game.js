@@ -22,7 +22,6 @@ class Game extends React.Component {
         this.stopAutoClick = false;
         this.numPromise = 0;
     }
-
     componentDidMount() {
         this.startNewGame();
     }
@@ -43,7 +42,15 @@ class Game extends React.Component {
         for (let i=0; i<81; i++) {
             unshuf.push(i);
         }
-        let ishuf = _.shuffle(unshuf);
+        let ishuf;
+        if (false) {
+            ishuf = _.shuffle(unshuf);
+        }
+        else {
+            ishuf = JSON.parse(window.localStorage.getItem('lastTripShuf'));
+        }
+        window.localStorage.lastTripShuf = JSON.stringify(ishuf);
+
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
         this.newgrid = new CardGrid(source, 4, 3);
@@ -83,7 +90,7 @@ class Game extends React.Component {
     click3ProcessStart() {
         // console.log(this.clickList);
         // after timeout do this logic an re-render
-        if (this.clicklist.length === 0) {
+        if (this.clickList.length === 0) {
             this.setGridState();
             return;
         }
@@ -231,20 +238,19 @@ class Game extends React.Component {
                 />
               </label>
               <p/>
-             
+              <div className="game-info">
+                <div style={{fontSize: "20px"}}>
+                  {tripsStatus}
+                  <br/>
+                  {gameStatus}
+                </div>
+              </div>
               <div className="game">
                 <div className="game-board">
                   <Board
                     grid = {this.state.grid}
-                    onClick = {(i) => this.handleClick(i)}
+                    onClick = {(i) => this.handleClick.bind(this)(i)}
                   />
-                </div>
-                <div className="game-info">
-                  <div style={{fontSize: "20px"}}>
-                    {tripsStatus}
-                    <br/>
-                    {gameStatus}
-                  </div>
                 </div>
               </div>
             </div>

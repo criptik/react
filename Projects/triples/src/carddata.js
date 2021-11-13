@@ -56,6 +56,7 @@ class CardAry {
     constructor(ary) {
         if (!ary) ary = [];
         this.ary = ary;
+        this.dbg = false;
     }
 
     length() {
@@ -86,12 +87,12 @@ class CardAry {
     }
 
     // return set of 3 indices if ary includes a triplet, else null
-    includesTrip(dbg = false, idxlimit=this.length()) {
-        for (let j1=0; j1<idxlimit; j1++) {
-            for (let j2=j1+1; j2<idxlimit; j2++) {
+    includesTrip(dbg = this.dbg, idx1start=this.length()-1, idx1end=0) {
+        for (let j1=idx1start; j1>=idx1end; j1--) {
+            for (let j2=j1-1; j2>=0; j2--) {
                 let tripfin = this.tripFinish(j1, j2);
                 let tripfinint = tripfin.asint;
-                for (let j3=j2+1; j3<idxlimit; j3++) {
+                for (let j3=j2-1; j3>=0; j3--) {
                     // if (j3 === j1 || j3 === j2) continue;
                     if (tripfinint === this.ary[j3].asint) {
                         if (dbg) console.log(j1, j2, j3, this.ary[j1].toString(), this.ary[j2].toString(), this.ary[j3].toString());
@@ -160,7 +161,7 @@ class CardGrid extends CardAry {
         this.ary[idx].imageWidth = width;
     }
     
-    fillUntilHasTrip(dbg=false) {
+    fillUntilHasTrip(dbg=this.dbg) {
         let goalLength = this.minlength;
         // if no triple, add one more row
         // and repeat until we have a triple
@@ -169,7 +170,10 @@ class CardGrid extends CardAry {
                 this.fillFromSource(this.length());
             }
             if (dbg  && goalLength > this.minlength) console.log(`grid length is now ${this.length()}`);
-            let tripIdxs = this.includesTrip(dbg);
+            let idx1start = this.length() - 1;
+            // for bigger than minimum array, j1 index must be in last row
+            let idx1end = (this.length() > this.minlength) ? this.length() - this.cols : 0;
+            let tripIdxs = this.includesTrip(dbg, idx1start, idx1end);
             if (tripIdxs !== null) return tripIdxs;
             if (dbg) console.log(`no triple found with grid length ${this.length()}`);
             if (this.source.length < this.cols) {
@@ -183,7 +187,7 @@ class CardGrid extends CardAry {
 
     // remove the triplet indicated by the idxs array
     // return true if it was replaced, false if just deleted
-    tripRemoveReplace(idxs, dbg=false) {
+    tripRemoveReplace(idxs, dbg=this.dbg) {
         // console.log(idxs);
         let retval = true;
         let revsortidxs = idxs.sort((a, b) => b - a);
@@ -211,16 +215,18 @@ class CardGrid extends CardAry {
                 else {
                     // then move remaining last row items up to other empty slots
                     let fromidx = this.length() - 1;
-                    if (dbg) console.log(`move last row ${fromidx} to ${idx}`);
                     this.move(fromidx, idx);
+                    if (dbg) console.log(`move last row ${fromidx} to ${idx}, length now ${this.length()}`);
                 }
             });
             // special case, having gone from 18 to 15, let us check whether
             // a trip exists in the first 12 and if so, trim this down to 12
             // by pushing back to source
-            if ((this.length() > this.minlength) && this.includesTrip(true, this.minlength)) {
-                if (dbg) console.log(`special case, push last row back to source`);
-                [1,2,3].forEach(() => this.backToSource(this.length() - 1));
+            if ((this.length() > this.minlength) && this.includesTrip(dbg, this.minlength-1, 0)) {
+                if (true) console.log(`special case, push last row back to source`);
+                for (let n=0; n<this.cols; n++) {
+                    this.backToSource(this.length() - 1);
+                }
             }
         }
         return retval;
