@@ -26,7 +26,11 @@ class Game extends React.Component {
         this.startNewGame();
     }
 
-    async startNewGame() {
+    restartGame() {
+        this.startNewGame(false);
+    }
+    
+    async startNewGame(useNew = true) {
         // set stop flag to prevent further autoclick loops
         // then wait for current loop to finish
         this.stopAutoClick = true;
@@ -37,13 +41,14 @@ class Game extends React.Component {
         this.stopAutoClick = false;
         this.demoModeSwitchValue = false;
         
-        // shuffle the cards 0-80
-        let unshuf = [];
-        for (let i=0; i<81; i++) {
-            unshuf.push(i);
-        }
         let ishuf;
-        if (false) {
+        // set false here to repeat a previous game
+        if (useNew) {
+            // shuffle the cards 0-80
+            let unshuf = [];
+            for (let i=0; i<81; i++) {
+                unshuf.push(i);
+            }
             ishuf = _.shuffle(unshuf);
         }
         else {
@@ -214,20 +219,22 @@ class Game extends React.Component {
     
     render() {
         let nbsp = String.fromCharCode(160);
-        let nbspx4 = `${nbsp}${nbsp}${nbsp}${nbsp}`;
+        let nbspx4 = nbsp.repeat(4);
         let tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
+        let tripsFoundStatus = `${nbsp.repeat(28)}${String.fromCharCode(9311 + this.state.grid.tripsFound.length)}`;
         let gameStatus = (this.state.gameOver ? 'Game Over' : '');
         // let showDbg = false;
         return (
             <div>
               {`Triples App ${nbspx4}`}
-              <button
-                onClick={() => this.startNewGame()}
-              >
-                New Game
+              <button onClick={() => this.startNewGame.bind(this)()}>
+                New
+              </button>
+              <button style={{marginLeft: "20px"}} onClick={() => this.restartGame.bind(this)()}>
+                {String.fromCharCode(10226)}
               </button>
               <label>
-                <span> {`${nbspx4} Demo Mode? `}</span>
+                <span> {`${nbspx4} Demo? `}</span>
                 <Switch
                   className="react-switch"
                   onChange={this.demoModeSwitchChange.bind(this)}
@@ -241,6 +248,7 @@ class Game extends React.Component {
               <div className="game-info">
                 <div style={{fontSize: "20px"}}>
                   {tripsStatus}
+                  {tripsFoundStatus}
                   <br/>
                   {gameStatus}
                 </div>

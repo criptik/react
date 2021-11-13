@@ -57,6 +57,7 @@ class CardAry {
         if (!ary) ary = [];
         this.ary = ary;
         this.dbg = false;
+        this.tripsFound = [];
     }
 
     length() {
@@ -88,6 +89,7 @@ class CardAry {
 
     // return set of 3 indices if ary includes a triplet, else null
     includesTrip(dbg = this.dbg, idx1start=this.length()-1, idx1end=0) {
+        this.tripsFound = [];
         for (let j1=idx1start; j1>=idx1end; j1--) {
             for (let j2=j1-1; j2>=0; j2--) {
                 let tripfin = this.tripFinish(j1, j2);
@@ -96,12 +98,12 @@ class CardAry {
                     // if (j3 === j1 || j3 === j2) continue;
                     if (tripfinint === this.ary[j3].asint) {
                         if (dbg) console.log(j1, j2, j3, this.ary[j1].toString(), this.ary[j2].toString(), this.ary[j3].toString());
-                        return [j1, j2, j3];
+                        this.tripsFound.push([j1, j2, j3]);
                     }
                 }
             }
         }
-        return null;
+        return (this.tripsFound.length === 0 ? null : this.tripsFound[0]);
     }
 
     get(idx) {
