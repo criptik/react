@@ -160,7 +160,16 @@ class CardGrid extends CardAry {
     }
 
     setImageWidth(idx, width) {
-        this.ary[idx].imageWidth = width;
+        try {
+            if (width === '0px') {
+                console.log(idx, width);
+            }
+
+            this.ary[idx].imageWidth = `${width}px`;
+        }
+        catch(e) {
+            console.log(e, idx, width);
+        }
     }
     
     fillUntilHasTrip(dbg=this.dbg) {
@@ -190,6 +199,7 @@ class CardGrid extends CardAry {
     // remove the triplet indicated by the idxs array
     // return true if it was replaced, false if just deleted
     tripRemoveReplace(idxs, dbg=this.dbg) {
+        dbg = true;
         // console.log(idxs);
         let retval = true;
         let revsortidxs = idxs.sort((a, b) => b - a);

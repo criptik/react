@@ -5,7 +5,10 @@ import * as _ from 'underscore';
 import './index.css';
 import {CardGrid, CardData} from './carddata.js';
 import Board from './Board.js';
+import ElapsedTime from './ElapsedTime.js';
 // import * as assert from 'assert';
+
+var lastCardGrid;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -16,7 +19,9 @@ class Game extends React.Component {
         super(props);
         this.state = {};
         this.state.grid = new CardGrid(null, 4, 3);
-        this.state.gameOver = false
+        this.state.gameOver = false;
+        this.state.paused = false;
+        this.state.startTime = new Date();
         this.demoModeSwitchValue = false;
         this.autoClickPromise = null;
         this.stopAutoClick = false;
@@ -58,8 +63,9 @@ class Game extends React.Component {
 
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
-        this.newgrid = new CardGrid(source, 4, 3);
-
+        this.newgrid = new CardGrid(source, 1, 3);
+        lastCardGrid = this.newgrid;
+        
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
@@ -74,12 +80,19 @@ class Game extends React.Component {
         this.setState({
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
+            startTime: new Date(),
         });
         this.numPromise = 0;
         this.checkAutoClick();
         // console.log(this.state.grid);
     }
 
+    setPaused(val) {
+        this.setState({
+            paused: !this.state.paused,
+        });
+    }
+    
     checkAutoClick() {
         if (this.autoClick) {
             this.pauseWithHighlightsTime = 1500;
@@ -118,38 +131,59 @@ class Game extends React.Component {
             grid: this.newgrid,
         });
     }
+
+    growPercentages() {
+        return [0, 20, 40, 60, 80];
+    }
+
+    cardsImageGrow(cardIdxs) {
+        console.log('cardImageGrow', cardIdxs);
+        return this.cardsImageSizeChange(cardIdxs, true);
+    }
+
+    cardsImageShrink(cardIdxs) {
+        console.log('cardImageShrink', cardIdxs);
+        return this.cardsImageSizeChange(cardIdxs, false);
+    }
+
+    
+    async cardsImageSizeChange(cardIdxs, shouldGrow) {
+        let ary = (shouldGrow ? this.growPercentages() : this.growPercentages().reverse());
+        for (let widx=0; widx < ary.length; widx++) {
+            let width = ary[widx];
+            cardIdxs.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
+            await sleep(this.shrinkGrowTime);
+            this.setGridState();
+        }
+        console.log('finixshed imageSizeChange', cardIdxs, shouldGrow);
+    }
+
+    async useBlankReplacement() {
+        this.clickList.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
+        await sleep(this.pauseWithBlanksTime);
+        this.setGridState();
+        // actual replacement
+        this.newgrid.tripRemoveReplace(this.clickList);
+    }
     
     async handleTripleRemoval() {
-        // before refilling, decrease img size
-        let imgWidths = [80, 60, 40, 20, 0];
-
+        // before refilling, shrink old img size
         // logic to use before actual replacement
         if (this.useShrinkGrow) {
             // shrinking
-            for (let widx=0; widx < imgWidths.length; widx++) {
-                let width = imgWidths[widx];
-                this.clickList.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
-                await sleep(this.shrinkGrowTime);
-                this.setGridState();
-            }
+            await this.cardsImageShrink(this.clickList);
             // actual replacement
             let allStillThere = this.newgrid.tripRemoveReplace(this.clickList);
+            console.log('finished tripRemoveReplace', this.clickList);
             // growing
             if (allStillThere) {
-                for (let widx=0; widx < imgWidths.length; widx++) {
-                    let width = imgWidths[imgWidths.length - 1 - widx];
-                    this.clickList.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
-                    await sleep(this.shrinkGrowTime);
-                    this.setGridState();
-                }
+                await this.cardsImageGrow(this.clickList);
+            } else {
+                console.log('not allStillThere', this.clickList);
             }
         }
         else {
-            this.clickList.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
-            await sleep(this.pauseWithBlanksTime);
-            this.setGridState();
-            // actual replacement
-            this.newgrid.tripRemoveReplace(this.clickList);
+            this.useBlankReplacement();
         }
 
         // finish up and get ready for next
@@ -221,8 +255,13 @@ class Game extends React.Component {
         let nbsp = String.fromCharCode(160);
         let nbspx4 = nbsp.repeat(4);
         let tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
-        let tripsFoundStatus = `${nbsp.repeat(28)}${String.fromCharCode(9311 + this.state.grid.tripsFound.length)}`;
+        let tripsFound = this.state.grid.tripsFound.length;
+        let tripsFoundChar = (tripsFound ? String.fromCharCode(9311 + tripsFound) : ' ');
+        let tripsFoundStatus = `${nbsp.repeat(20)}${tripsFoundChar}`;
+
         let gameStatus = (this.state.gameOver ? 'Game Over' : '');
+        let shouldClearElapsed = this.clearElapsed;
+        this.clearElapsed = false;
         // let showDbg = false;
         return (
             <div>
@@ -247,6 +286,14 @@ class Game extends React.Component {
               <p/>
               <div className="game-info">
                 <div style={{fontSize: "20px"}}>
+                  <ElapsedTime
+                    clearElapsed = {shouldClearElapsed}
+                    paused = {this.state.paused}
+                  />
+                  <button style={{marginLeft: "20px", border:"none"}} onClick={() => this.setPaused.bind(this)()}>
+                    {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
+                  </button>
+                  <p/>
                   {tripsStatus}
                   {tripsFoundStatus}
                   <br/>
