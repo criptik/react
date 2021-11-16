@@ -8,7 +8,6 @@ import Board from './Board.js';
 import ElapsedTime from './ElapsedTime.js';
 // import * as assert from 'assert';
 
-var lastCardGrid;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -64,7 +63,6 @@ class Game extends React.Component {
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
         this.newgrid = new CardGrid(source, 1, 3);
-        lastCardGrid = this.newgrid;
         
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
@@ -137,12 +135,10 @@ class Game extends React.Component {
     }
 
     cardsImageGrow(cardIdxs) {
-        console.log('cardImageGrow', cardIdxs);
         return this.cardsImageSizeChange(cardIdxs, true);
     }
 
     cardsImageShrink(cardIdxs) {
-        console.log('cardImageShrink', cardIdxs);
         return this.cardsImageSizeChange(cardIdxs, false);
     }
 
@@ -155,7 +151,7 @@ class Game extends React.Component {
             await sleep(this.shrinkGrowTime);
             this.setGridState();
         }
-        console.log('finixshed imageSizeChange', cardIdxs, shouldGrow);
+        // console.log('finished imageSizeChange', cardIdxs, shouldGrow);
     }
 
     async useBlankReplacement() {
@@ -174,12 +170,12 @@ class Game extends React.Component {
             await this.cardsImageShrink(this.clickList);
             // actual replacement
             let allStillThere = this.newgrid.tripRemoveReplace(this.clickList);
-            console.log('finished tripRemoveReplace', this.clickList);
+            // console.log('finished tripRemoveReplace', this.clickList);
             // growing
             if (allStillThere) {
                 await this.cardsImageGrow(this.clickList);
             } else {
-                console.log('not allStillThere', this.clickList);
+                // console.log('not allStillThere', this.clickList);
             }
         }
         else {
@@ -195,12 +191,14 @@ class Game extends React.Component {
             gameOver: (this.lastTripFound === null),
         });
         if (this.lastTripFound !== null && this.autoClick && !this.stopAutoClick) {
-            this.numPromise++;
-            // console.log(`before new Promise #${this.numPromise}, ${this.stopAutoClick}`);
-            this.autoClickPromise = new Promise((resolve) => {
-                this.autoClickProcess();
-                resolve();
-            });
+            setTimeout(() => {
+                this.numPromise++;
+                // console.log(`before new Promise #${this.numPromise}, ${this.stopAutoClick}`);
+                this.autoClickPromise = new Promise((resolve) => {
+                    this.autoClickProcess();
+                    resolve();
+                });
+            }, 100);
         }
     }
 
