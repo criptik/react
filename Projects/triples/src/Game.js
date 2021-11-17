@@ -85,17 +85,43 @@ class Game extends React.Component {
         // console.log(this.state.grid);
     }
 
-    setPaused(val) {
+    async setPaused(val) {
+        this.newgrid = this.state.grid;
+        this.newpaused = !this.state.paused;
+        if (this.newpaused) {
+            // if pausing when autoclick in progress, wait for it to finish
+            if (this.autoClick) {
+                // console.log('about to wait for', this.autoClickPromise, this.clickList);
+                this.stopAutoClick = true;
+                await this.autoClickPromise;
+                // console.log('setpaused autoClickPromise complete', this.newgrid.length(), this.state.grid.length());
+                this.newgrid = this.state.grid;
+            }
+            let allCardsAry = _.range(0, this.newgrid.length());
+            await this.cardsImageShrink(allCardsAry);
+        }
+        else {
+            let allCardsAry = _.range(0, this.newgrid.length());
+            await this.cardsImageGrow(allCardsAry);
+            // if unpausing with autoclick start things up again
+            if (this.autoClick) {
+                // console.log('about to call autoClickLoop');
+                this.stopAutoClick = false;
+                this.autoClickLoop();
+                // console.log('returned from autoClickLoop');
+            }
+        }
         this.setState({
-            paused: !this.state.paused,
+            grid: this.newgrid,
+            paused: this.newpaused,
         });
     }
-    
+
     checkAutoClick() {
         if (this.autoClick) {
             this.pauseWithHighlightsTime = 1500;
             this.pauseWithBlanksTime = 500;
-            this.autoClickProcess();
+            this.autoClickLoop();
         }
         else {
             this.pauseWithHighlightsTime = 300;
@@ -103,7 +129,7 @@ class Game extends React.Component {
         }
     }
     
-    click3ProcessStart() {
+    async click3ProcessStart() {
         // console.log(this.clickList);
         // after timeout do this logic an re-render
         if (this.clickList.length === 0) {
@@ -119,7 +145,7 @@ class Game extends React.Component {
         else {
             // this logic if it is a triple
             this.numtrips++;
-            this.handleTripleRemoval();
+            await this.handleTripleRemoval();
         }
         this.setGridState();
     }
@@ -146,7 +172,7 @@ class Game extends React.Component {
     async cardsImageSizeChange(cardIdxs, shouldGrow) {
         let ary = (shouldGrow ? this.growPercentages() : this.growPercentages().reverse());
         for (let widx=0; widx < ary.length; widx++) {
-            let width = ary[widx];
+            let width = `${ary[widx]}px`;
             cardIdxs.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
             await sleep(this.shrinkGrowTime);
             this.setGridState();
@@ -184,42 +210,46 @@ class Game extends React.Component {
 
         // finish up and get ready for next
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
+        // console.log(`finished fillUntilHasTrip, ${this.lastTripFound}`);
         this.clickList = [];
         // console.log(this.lastTripFound);
         this.setState({
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
         });
-        if (this.lastTripFound !== null && this.autoClick && !this.stopAutoClick) {
-            setTimeout(() => {
-                this.numPromise++;
-                // console.log(`before new Promise #${this.numPromise}, ${this.stopAutoClick}`);
-                this.autoClickPromise = new Promise((resolve) => {
-                    this.autoClickProcess();
-                    resolve();
-                });
-            }, 100);
-        }
     }
 
-    async autoClickProcess() {
+    async autoClickLoop() {
         this.newgrid = this.state.grid;
+        while (this.lastTripFound !== null && this.autoClick && !this.stopAutoClick) {
+            this.numPromise++;
+            // console.log(`before new Promise #${this.numPromise}, ${this.stopAutoClick}`);
+            this.autoClickPromise = new Promise(async (resolve) => {
+                this.clickList = [];
+                for (let n=0; n<3; n++) {
+                    await this.handleClick(this.lastTripFound[n]);
+                    await sleep(100);
+                };
+                resolve();
+            });
+            await this.autoClickPromise;
+            // console.log('finished awaiting promise');
+            await sleep(500);
+            // console.log('finished sleep 500');
+            // this.stopAutoClick = true;
+            // console.trace();
+        }
         if (this.lastTripFound === null) {
             this.setState({
+                grid: this.newgrid,
                 gameOver: true,
-                });
-        }
-        else {
-            this.clickList = [];
-            for (let n=0; n<3; n++) {
-                this.handleClick(this.lastTripFound[n]);
-                await sleep(100);
-            };
+            });
         }
     }
     
     async handleClick(i) {
         // console.log(`click on square ${i}`);
+        if (this.state.paused) return;
         this.newgrid = this.state.grid;
         if (this.clickList.includes(i)) {
             // remove from clicklist and unhighlight
@@ -235,7 +265,7 @@ class Game extends React.Component {
         });
         if (this.clickList.length === 3) {
             await sleep(this.pauseWithHighlightsTime);
-            this.click3ProcessStart();
+            await this.click3ProcessStart();
         }
     }
     

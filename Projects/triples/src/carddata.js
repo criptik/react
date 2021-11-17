@@ -161,10 +161,6 @@ class CardGrid extends CardAry {
 
     setImageWidth(idx, width) {
         try {
-            if (width === '0px') {
-                console.log(idx, width);
-            }
-
             this.ary[idx].imageWidth = `${width}px`;
         }
         catch(e) {
