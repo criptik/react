@@ -80,6 +80,7 @@ class Game extends React.Component {
             gameOver: (this.lastTripFound === null),
             startTime: new Date(),
         });
+        this.hintError = false;
         this.numPromise = 0;
         this.checkAutoClick();
         this.clearElapsed = true;
@@ -280,8 +281,48 @@ class Game extends React.Component {
         this.checkAutoClick();
     }
 
+    findTripThatFinishesClickList() {
+        // if all elems of B are in A, return the rest of A
+        function aryDiff(aryA, aryB) {
+            let diff = Array.from(aryA);
+            for (let elem of aryB) {
+                let idxa = diff.indexOf(elem);
+                if (idxa === -1) {
+                    return [];
+                }
+                else {
+                    diff.splice(idxa, 1);
+                }
+            }
+            return diff
+        }
+        for (let idx = 0; idx < this.state.grid.tripsFound.length; idx++) {
+            let diff = aryDiff(this.state.grid.tripsFound[idx], this.clickList);
+            if (diff.length !== 0) {
+                return diff;
+            }
+        }
+        // if we got this far, non-zero clickList not partially contained anywhere
+        return [];
+    }
+
+    async componentDidUpdate() {
+        if (this.hintError) {
+            this.hintError = false;
+            await sleep(500);
+            this.forceUpdate();
+        }
+    }
+    
     async setHint() {
-        await this.handleClick(this.lastTripFound[this.clickList.length]);
+        let finisher = this.findTripThatFinishesClickList();
+        // console.log(this.clickList, finisher, this.state.grid.tripsFound);
+        if (finisher.length === 0) {
+            this.hintError = true;
+            this.forceUpdate();
+            return;
+        }
+        await this.handleClick(finisher[0]);
         await sleep(100);
     }
     
@@ -296,6 +337,14 @@ class Game extends React.Component {
         let gameStatus = (this.state.gameOver ? 'Game Over' : '');
         let shouldClearElapsed = this.clearElapsed;
         this.clearElapsed = false;
+
+        let hintButtonStyle = {marginLeft: "20px", borderRadius: "50%"};
+        if (this.hintError) {
+            hintButtonStyle.animationName = "shakeAnim";
+            hintButtonStyle.animationDuration = "600ms";
+            hintButtonStyle.animationIterationCount = "1";
+        }
+                
         // let showDbg = false;
         return (
             <div>
@@ -327,7 +376,7 @@ class Game extends React.Component {
                   <button style={{fontSize: "20px", marginLeft: "20px", padding: "0px", borderWidth: "0px"}} onClick={() => this.setPaused.bind(this)()}>
                     {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
                   </button>
-                  <button style={{marginLeft: "20px", borderRadius: "50%"}} onClick={() => this.setHint.bind(this)()}>
+                  <button style={hintButtonStyle} onClick={() => this.setHint.bind(this)()}>
                     {String.fromCharCode(0x2139)}
                   </button>
                   <p/>
