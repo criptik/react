@@ -79,11 +79,12 @@ class Game extends React.Component {
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
             startTime: new Date(),
+            elapsedSecs : 0,
         });
+        this.setNewElapsedTimer();
         this.hintError = false;
         this.numPromise = 0;
         this.checkAutoClick();
-        this.clearElapsed = true;
         // console.log(this.state.grid);
     }
 
@@ -91,6 +92,7 @@ class Game extends React.Component {
         this.newgrid = this.state.grid;
         this.newpaused = !this.state.paused;
         if (this.newpaused) {
+            clearInterval(this.elapsedTimer);
             // if pausing when autoclick in progress, wait for it to finish
             if (this.autoClick) {
                 // console.log('about to wait for', this.autoClickPromise, this.clickList);
@@ -103,6 +105,7 @@ class Game extends React.Component {
             await this.cardsImageShrink(allCardsAry);
         }
         else {
+            this.setNewElapsedTimer();
             let allCardsAry = _.range(0, this.newgrid.length());
             await this.cardsImageGrow(allCardsAry);
             // if unpausing with autoclick start things up again
@@ -325,6 +328,18 @@ class Game extends React.Component {
         await this.handleClick(finisher[0]);
         await sleep(100);
     }
+
+    setNewElapsedTimer() {
+        this.elapsedTimer = setInterval(() => this.updateElapsed.bind(this)(), 1000);
+    }
+    
+    updateElapsed() {
+        if (!this.state.paused) {
+            this.setState({
+                elapsedSecs: this.state.elapsedSecs + 1,
+            });
+        }
+    }
     
     render() {
         let nbsp = String.fromCharCode(160);
@@ -335,8 +350,6 @@ class Game extends React.Component {
         let tripsFoundStatus = `${nbsp.repeat(20)}${tripsFoundChar}`;
 
         let gameStatus = (this.state.gameOver ? 'Game Over' : '');
-        let shouldClearElapsed = this.clearElapsed;
-        this.clearElapsed = false;
 
         let hintButtonStyle = {marginLeft: "20px", borderRadius: "50%"};
         if (this.hintError) {
@@ -370,8 +383,7 @@ class Game extends React.Component {
               <div className="game-info">
                 <div style={{fontSize: "20px"}}>
                   <ElapsedTime
-                    clearElapsed = {shouldClearElapsed}
-                    paused = {this.state.paused}
+                    elapsedSecs = {this.state.elapsedSecs}
                   />
                   <button style={{fontSize: "20px", marginLeft: "20px", padding: "0px", borderWidth: "0px"}} onClick={() => this.setPaused.bind(this)()}>
                     {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
