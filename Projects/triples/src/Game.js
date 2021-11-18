@@ -62,7 +62,7 @@ class Game extends React.Component {
 
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
-        this.newgrid = new CardGrid(source, 1, 3);
+        this.newgrid = new CardGrid(source, 4, 3);
         
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
@@ -82,6 +82,7 @@ class Game extends React.Component {
         });
         this.numPromise = 0;
         this.checkAutoClick();
+        this.clearElapsed = true;
         // console.log(this.state.grid);
     }
 
@@ -278,6 +279,11 @@ class Game extends React.Component {
         this.autoClick = this.demoModeSwitchValue;
         this.checkAutoClick();
     }
+
+    async setHint() {
+        await this.handleClick(this.lastTripFound[this.clickList.length]);
+        await sleep(100);
+    }
     
     render() {
         let nbsp = String.fromCharCode(160);
@@ -318,8 +324,11 @@ class Game extends React.Component {
                     clearElapsed = {shouldClearElapsed}
                     paused = {this.state.paused}
                   />
-                  <button style={{marginLeft: "20px", border:"none"}} onClick={() => this.setPaused.bind(this)()}>
+                  <button style={{fontSize: "20px", marginLeft: "20px", padding: "0px", borderWidth: "0px"}} onClick={() => this.setPaused.bind(this)()}>
                     {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
+                  </button>
+                  <button style={{marginLeft: "20px", borderRadius: "50%"}} onClick={() => this.setHint.bind(this)()}>
+                    {String.fromCharCode(0x2139)}
                   </button>
                   <p/>
                   {tripsStatus}
