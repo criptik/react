@@ -6,8 +6,6 @@ class CardButton extends React.Component {
         // override some style things if highlight on (otherwise use default css)
         let highlightStyle = (!this.props.value.highlight) ? null : {
             border: '3px solid Black',
-            marginTop: '6px',
-            marginRight: '6px',
         };
         return (
             <button

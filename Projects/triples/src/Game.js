@@ -1,5 +1,5 @@
 import React from 'react';
-import Switch from "react-switch";
+// import Switch from "react-switch";
 import * as _ from 'underscore';
 // import NumericInput from 'react-numeric-input';
 import './index.css';
@@ -25,6 +25,7 @@ class Game extends React.Component {
         this.autoClickPromise = null;
         this.stopAutoClick = false;
         this.numPromise = 0;
+        this.gameType = 'Arcade';
     }
     componentDidMount() {
         this.startNewGame();
@@ -43,7 +44,7 @@ class Game extends React.Component {
         // console.log(`after await in startNewGame, ${this.numPromise}`);
         // and turn off stop flag
         this.stopAutoClick = false;
-        this.demoModeSwitchValue = false;
+        this.demoModeSwitchValue = (this.gameType.includes('Demo'));
         
         let ishuf;
         // set false here to repeat a previous game
@@ -54,11 +55,22 @@ class Game extends React.Component {
                 unshuf.push(i);
             }
             ishuf = _.shuffle(unshuf);
+            this.isReplay = false;
         }
         else {
             ishuf = JSON.parse(window.localStorage.getItem('lastTripShuf'));
+            this.isReplay = true;
         }
         window.localStorage.lastTripShuf = JSON.stringify(ishuf);
+        let lastTenJSON = window.localStorage.getItem('lastTenTripScores');
+        if (lastTenJSON) {
+            this.lastTenScores = JSON.parse(lastTenJSON);
+        } else {
+            this.lastTenScores = {
+                arcade: [],
+                classic: [],
+            }
+        }
 
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
@@ -80,6 +92,7 @@ class Game extends React.Component {
             gameOver: (this.lastTripFound === null),
             startTime: new Date(),
             elapsedSecs : 0,
+            lastTenScores : this.lastTenScores,
         });
         this.setNewElapsedTimer();
         this.hintError = false;
@@ -220,7 +233,7 @@ class Game extends React.Component {
         // console.log(this.lastTripFound);
         this.setState({
             grid: this.newgrid,
-            gameOver: (this.lastTripFound === null),
+            gameOver: (this.lastTripFound === null || this.state.gameOver),
         });
     }
 
@@ -254,7 +267,7 @@ class Game extends React.Component {
     
     async handleClick(i) {
         // console.log(`click on square ${i}`);
-        if (this.state.paused) return;
+        if (this.state.paused || this.state.gameOver) return;
         this.newgrid = this.state.grid;
         if (this.clickList.includes(i)) {
             // remove from clicklist and unhighlight
@@ -277,9 +290,8 @@ class Game extends React.Component {
     initBoard() {
     }
 
-    demoModeSwitchChange(checked) {
-        // console.log(checked, this);
-        this.demoModeSwitchValue = checked;
+    demoModeSwitchChange() {
+        this.demoModeSwitchValue = ! this.demoModeSwitchValue;
         this.autoClick = this.demoModeSwitchValue;
         this.checkAutoClick();
     }
@@ -330,27 +342,50 @@ class Game extends React.Component {
     }
 
     setNewElapsedTimer() {
+        if (this.elapsedTimer) clearInterval(this.elapsedTimer);
         this.elapsedTimer = setInterval(() => this.updateElapsed.bind(this)(), 1000);
     }
     
     updateElapsed() {
-        if (!this.state.paused) {
+        if (!this.state.paused && !this.state.gameOver) {
+            let newElapsed = this.state.elapsedSecs + 1;
+            let isGameOver = (this.gameType.includes('Arcade') && newElapsed === 60);   
+            if (isGameOver) {
+                this.stopAutoClick = true;
+                this.autoClick = false;
+                clearInterval(this.elapsedTimer);
+                // get score
+                this.lastTenScores.arcade.unshift(this.numtrips);
+                this.lastTenScores.arcade.length = Math.min(this.lastTenScores.arcade.length, 10);
+                window.localStorage.lastTenTripScores = JSON.stringify(this.lastTenScores);
+            }
             this.setState({
-                elapsedSecs: this.state.elapsedSecs + 1,
+                elapsedSecs: newElapsed,
+                gameOver : isGameOver,
+                lastTenScores : this.lastTenScores,
             });
         }
+        
+    }
+
+    handleGameTypeChange(event) {
+        this.gameType = event.target.value;
+        this.startNewGame();
     }
     
     render() {
+        function aryAverage(ary) {
+            return ary.reduce((a, b) => a + b, 0) / ary.length;
+        }
         let nbsp = String.fromCharCode(160);
         let nbspx4 = nbsp.repeat(4);
         let tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
         let tripsFound = this.state.grid.tripsFound.length;
         let tripsFoundChar = (tripsFound ? String.fromCharCode(9311 + tripsFound) : ' ');
-        let tripsFoundStatus = `${nbsp.repeat(20)}${tripsFoundChar}`;
+        let tripsFoundStatus = `${tripsFoundChar}`;
 
-        let gameStatus = (this.state.gameOver ? 'Game Over' : '');
-
+        let gameStatus = (this.state.gameOver ? `${nbspx4}Game Over` : '');
+        let lastTenStatus = this.state.lastTenScores ? `${nbsp.repeat(6)}${aryAverage(this.state.lastTenScores.arcade).toFixed(1)} (avg)` : ' ';
         let hintButtonStyle = {marginLeft: "20px", borderRadius: "50%"};
         if (this.hintError) {
             hintButtonStyle.animationName = "shakeAnim";
@@ -361,27 +396,24 @@ class Game extends React.Component {
         // let showDbg = false;
         return (
             <div>
-              {`Triples App ${nbspx4}`}
-              <button onClick={() => this.startNewGame.bind(this)()}>
+              <select name="gameType" value={this.gameType} onChange={this.handleGameTypeChange.bind(this)}>
+                <option value="Arcade">Arcade</option>
+                <option value="Classic">Classic</option>
+                <option value="ArcadeDemo">Arcade Demo</option>
+                <option value="ClassicDemo">Classic Demo</option>
+              </select>
+              <button style={{marginLeft: "20px"}} onClick={() => this.startNewGame.bind(this)()}>
                 New
               </button>
               <button style={{marginLeft: "20px"}} onClick={() => this.restartGame.bind(this)()}>
                 {String.fromCharCode(10226)}
               </button>
-              <label>
-                <span> {`${nbspx4} Demo? `}</span>
-                <Switch
-                  className="react-switch"
-                  onChange={this.demoModeSwitchChange.bind(this)}
-                  id="demoModeSwitch"
-                  checked={this.demoModeSwitchValue}
-                  height={20}
-                  width={40}
-                />
-              </label>
+              <span style={{fontSize: '15px', textAlign: 'right'}}>
+                {gameStatus}
+              </span>
               <p/>
               <div className="game-info">
-                <div style={{fontSize: "20px"}}>
+                <div style={{fontSize: "15px", width: '300px'}}>
                   <ElapsedTime
                     elapsedSecs = {this.state.elapsedSecs}
                   />
@@ -392,10 +424,16 @@ class Game extends React.Component {
                     {String.fromCharCode(0x2139)}
                   </button>
                   <p/>
-                  {tripsStatus}
-                  {tripsFoundStatus}
+                  <p style={{fontSize: '15px', float: 'left'}}>
+                    {tripsStatus}
+                    {`${lastTenStatus}`}
+                  </p>
+                  <p style={{fontSize: '15px', float: 'right'}}>
+                    {tripsFoundStatus}
+                  </p>
                   <br/>
-                  {gameStatus}
+                  <div style={{clear: 'both'}}>
+                  </div>
                 </div>
               </div>
               <div className="game">
