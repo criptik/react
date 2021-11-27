@@ -193,13 +193,15 @@ class Game extends React.Component {
         let firstIdx = cardIdxs[0];
         this.shrinkGrowPromise = new Promise((resolve) => {
             this.newgrid.ary[firstIdx].onTransEnd = (e) => {
-                console.log(`in onTransEnd callback for grow=${shouldGrow}, idx=${firstIdx} ${e.elapsedTime} date=${new Date()}`);
+                // console.log(`in onTransEnd callback for grow=${shouldGrow}, idx=${firstIdx} ${e.elapsedTime}`);
                 resolve();
             };
         });
 
         cardIdxs.forEach((idx) =>  this.newgrid.ary[idx].shrinkGrowState = (shouldGrow ? 1 : -1));
         this.setGridState();
+        this.forceUpdate();
+        // console.log(`before await promise for grow=${shouldGrow}, idx=${firstIdx}`);
         await this.shrinkGrowPromise;
         // console.log(`return from shrinkGrowPromise, idx=${firstIdx}`);
     }
@@ -347,7 +349,7 @@ class Game extends React.Component {
         }
         await this.handleClick(finisher[0]);
         await sleep(100);
-        console.log('end of setHint', finisher[0]);
+        // console.log('end of setHint', finisher[0]);
     }
 
     setNewElapsedTimer() {

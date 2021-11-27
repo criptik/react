@@ -7,11 +7,21 @@ class CardButton extends React.Component {
         this.callbacks = 0;
         this.transformsCreated = 0;
         this.id = ++CardButton.cardButtonCounter;
+        this.setImageStyleEmpty();
+    }
+
+    setImageStyleEmpty() {
+        this.imageStyle = {transition:'', transform:''};
     }
     
     transEndCallback(e) {
         if (!this.inTransition) return;
+        // clear out instance vars
         this.inTransition = false;
+        // seems hacky but leave imageStyle when pausing in shrunk state
+        if (this.props.value.shrinkGrowState === 1) {
+            this.setImageStyleEmpty();
+        }
         this.callbacks++;
         // console.log(`CardButton ${this.props.value} transition to ${this.imgRef.current.style.transform} finished, ${e.elapsedTime} `);
         this.imgRef.current.removeEventListener('transitionend', this.transEndCallback.bind(this));
@@ -25,17 +35,20 @@ class CardButton extends React.Component {
     render() {
         // override some style things if highlight on (otherwise use default css)
         let buttonStyle = {};
-        let imageStyle = {};
         if (this.props.value.highlight) {
             buttonStyle.border = '3px solid Black';
         };
         let sgstate = this.props.value.shrinkGrowState;
         if (sgstate !== 0) {
             this.transformsCreated++;
-            imageStyle.transition = 'transform 300ms';
-            imageStyle.transform = (sgstate === 1 ? 'scale(100%)' : 'scale(0%)');
+            // keep imageStyle in longer lived location in case re-rendered
+            this.imageStyle = {
+                transition : 'transform 300ms',
+                transform : (sgstate === 1 ? 'scale(100%)' : 'scale(0%)'),
+            }
             // console.log(`${this.props.value}, shrinkGrow=${this.props.value.shrinkGrowState}, id=${this.id}`);
             this.props.value.shrinkGrowState = 0;
+            this.props.value.cbref = this;
             if (this.imgRef.current && this.props.value.onTransEnd) {
                 this.imgRef.current.addEventListener('transitionend', (e) => this.transEndCallback.bind(this)(e)); 
                 this.inTransition = true;
@@ -53,7 +66,7 @@ class CardButton extends React.Component {
                 src={this.props.value.dataURL}
                 height="auto"
                 width={this.props.value.imageWidth}
-                style={imageStyle}
+                style={this.imageStyle}
               />
             </button>
         );
