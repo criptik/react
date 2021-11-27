@@ -23,6 +23,7 @@ class CardData {
         }
         this.highlight = false;
         this.imageWidth = '80px';
+        this.shrinkGrowState = 0;
         // build the card Image
         this.cimg = new CardImage(this.attrs);
         if (this.attrs !== null) this.cimg.drawCard();

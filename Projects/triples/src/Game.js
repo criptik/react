@@ -186,16 +186,22 @@ class Game extends React.Component {
         return this.cardsImageSizeChange(cardIdxs, false);
     }
 
+    transitionEndHandler(e) {
+    }
     
     async cardsImageSizeChange(cardIdxs, shouldGrow) {
-        let ary = (shouldGrow ? this.growPercentages() : this.growPercentages().reverse());
-        for (let widx=0; widx < ary.length; widx++) {
-            let width = `${ary[widx]}px`;
-            cardIdxs.forEach((idx) =>  this.newgrid.setImageWidth(idx, width));
-            await sleep(this.shrinkGrowTime);
-            this.setGridState();
-        }
-        // console.log('finished imageSizeChange', cardIdxs, shouldGrow);
+        let firstIdx = cardIdxs[0];
+        this.shrinkGrowPromise = new Promise((resolve) => {
+            this.newgrid.ary[firstIdx].onTransEnd = (e) => {
+                console.log(`in onTransEnd callback for grow=${shouldGrow}, idx=${firstIdx} ${e.elapsedTime} date=${new Date()}`);
+                resolve();
+            };
+        });
+
+        cardIdxs.forEach((idx) =>  this.newgrid.ary[idx].shrinkGrowState = (shouldGrow ? 1 : -1));
+        this.setGridState();
+        await this.shrinkGrowPromise;
+        // console.log(`return from shrinkGrowPromise, idx=${firstIdx}`);
     }
 
     async useBlankReplacement() {
@@ -207,6 +213,7 @@ class Game extends React.Component {
     }
     
     async handleTripleRemoval() {
+        // this.clickList.forEach(idx => this.newgrid.clearHighlight(idx));
         // before refilling, shrink old img size
         // logic to use before actual replacement
         if (this.useShrinkGrow) {
@@ -218,8 +225,9 @@ class Game extends React.Component {
             // growing
             if (allStillThere) {
                 await this.cardsImageGrow(this.clickList);
+                // console.log(`returned from await cardsImageGrow`);
             } else {
-                // console.log('not allStillThere', this.clickList);
+                console.log('not allStillThere', this.clickList);
             }
         }
         else {
@@ -246,13 +254,13 @@ class Game extends React.Component {
                 this.clickList = [];
                 for (let n=0; n<3; n++) {
                     await this.handleClick(this.lastTripFound[n]);
-                    await sleep(100);
+                    // await sleep(100);
                 };
                 resolve();
             });
             await this.autoClickPromise;
             // console.log('finished awaiting promise');
-            await sleep(500);
+            // await sleep(500);
             // console.log('finished sleep 500');
             // this.stopAutoClick = true;
             // console.trace();
@@ -339,6 +347,7 @@ class Game extends React.Component {
         }
         await this.handleClick(finisher[0]);
         await sleep(100);
+        console.log('end of setHint', finisher[0]);
     }
 
     setNewElapsedTimer() {

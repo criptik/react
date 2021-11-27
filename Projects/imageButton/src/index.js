@@ -5,13 +5,21 @@ const { createCanvas } = require("canvas");
 
 class MyButton extends React.Component {
     render() {
-        // console.log('in MyButton.render,', this.props.imageUrl);
+        let buttonStyle = {};
+        let animTime = 'transform 500ms'
+        if (this.props.animState == 'Shrink') {
+            buttonStyle.transition = animTime;
+            buttonStyle.transform = 'scale(0%)';
+        }
+        else if (this.props.animState == 'Grow') {
+            buttonStyle.transition = animTime;
+            buttonStyle.transform = 'scale(100%)';
+        }
         return (
             <div>
               <button className="header_btn" style={(this.props.highlight) ? {borderWidth:5} : {borderWidth:1}} onClick={this.props.onClick} >
-                <img alt="missing" src={this.props.imageUrl} width={this.props.scale} height="auto"  />
+                <img alt="missing" src={this.props.imageUrl} style={buttonStyle} height="auto"  />
               </button>
-              {this.props.scale}
             </div>
         )
     }
@@ -30,6 +38,7 @@ class Base extends React.Component {
         this.state.canvasURL = [];
         this.state.colors = ['red', 'green', 'yellow'];
         this.state.scale = 100;
+        this.state.animState = null;
         
         this.state.colors.forEach((color) => {
             const canvas = createCanvas(30, 30);
@@ -46,37 +55,17 @@ class Base extends React.Component {
     }
 
     render() {
-        
+        let buttonStyle = {};
         return ( <MyButton
                    text=""
                    imageUrl={this.state.canvasURL[this.state.coloridx]} //"image.png"
                    highlight={this.state.highlight}
                    onClick={()=>this.myclick()}
-                   scale={`${this.state.scale}%`}
-                   parent={`${this}`}
+                   animState = {this.state.animState}
                  />
                );
     }
 
-    changeScale() {
-        if (this.state.scale === 100) {
-            this.scaleInc = -10;
-        }
-        if (this.state.scale === 10) {
-            this.scaleInc = 10;
-        }
-        let newscale = this.state.scale + this.scaleInc;
-        this.setState({
-            scale: newscale
-        });
-        if (this.state.scale !== 100) {
-            this.timer = setTimeout(this.changeScale.bind(this), 50);
-        }
-        else {
-            clearTimeout(this.timer);
-        }
-    }
-    
     myclick() {
         console.log('Click!');
         this.clicks++;
@@ -85,8 +74,8 @@ class Base extends React.Component {
         this.setState({
             highlight: newhighlight,
             coloridx: newcoloridx,
+            animState: (this.clicks % 2 == 1 ? 'Shrink' : 'Grow'),
         });
-        this.timer = setTimeout(this.changeScale.bind(this), 50);
     }
 }
 // <MyButton text="Click" imageUrl="https://www.tutorialspoint.com/latest/inter-process-communication.png" />,
