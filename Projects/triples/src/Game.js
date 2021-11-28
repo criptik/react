@@ -81,6 +81,7 @@ class Game extends React.Component {
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
         this.autoClick = this.demoModeSwitchValue;
         this.pauseWithHighlightsTime = 300;
+        this.autoClickWaitTime = 400;
         this.useShrinkGrow = true;
         
         this.clickList = [];
@@ -186,8 +187,12 @@ class Game extends React.Component {
     }
     
     async cardsImageSizeChange(cardIdxs, shouldGrow) {
+        if (cardIdxs.length === 0) {
+            return;
+        }
         let idxTransEnd = cardIdxs.slice(-1);
         this.shrinkGrowPromise = new Promise((resolve) => {
+            // console.log(`setting onTransEnd(${shouldGrow} for ${idxTransEnd} from ${cardIdxs}`);
             this.newgrid.ary[idxTransEnd].onTransEnd = (e) => {
                 // console.log(`in onTransEnd callback for grow=${shouldGrow}, idx=${idxTransEnd} ${e.elapsedTime}`);
                 resolve();
@@ -209,11 +214,11 @@ class Game extends React.Component {
         // shrinking
         await this.cardsImageShrink(this.clickList);
         // actual replacement, return is a list of replaced indexes
-        let replacedList = this.newgrid.tripRemoveReplace(this.clickList);
-        // console.log('finished tripRemoveReplace', this.clickList, replacedList);
+        let growList = this.newgrid.tripRemoveReplace(this.clickList);
+        // console.log('finished tripRemoveReplace', this.clickList, growList);
 
         // growing
-        await this.cardsImageGrow(replacedList);
+        await this.cardsImageGrow(growList);
         // console.log(`returned from await cardsImageGrow`);
 
         // finish up and get ready for next
@@ -236,7 +241,7 @@ class Game extends React.Component {
                 this.clickList = [];
                 for (let n=0; n<3; n++) {
                     await this.handleClick(this.lastTripFound[n]);
-                    // await sleep(100);
+                    await sleep(this.autoClickWaitTime);
                 };
                 resolve();
             });

@@ -196,11 +196,13 @@ class CardGrid extends CardAry {
         let retList = [];
         let revsortidxs = idxs.sort((a, b) => b - a);
         if (this.source.length < 3){
+            let newGridLength = this.length() - 3;
             revsortidxs.forEach((idx) => {
                 if (dbg) console.log(`this source < 3, deleting ${idx}`);
                 this.delete(idx);
+                if (idx < newGridLength) retList.push(idx);
             });
-            return [];
+            return retList;
         }
         // at least 3 items in this.source
         // with no extra rows, just fill removed idxs from source

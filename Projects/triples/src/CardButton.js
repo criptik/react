@@ -19,6 +19,16 @@ class CardButton extends React.Component {
         // clear transition, leave transform unchanged
         this.imageStyle = {...this.imageStyle, transition:''};
     }
+
+    componentDidUpdate() {
+        if (this.imgRef.current && this.props.value.imgRect === undefined) {
+            let rect = this.imgRef.current.getBoundingClientRect();
+            this.props.value.imgRect = rect;
+            this.props.value.x = Math.floor(rect.x + rect.width/2);
+            this.props.value.y = Math.floor(rect.y + rect.height/2);
+            // console.log(this.props.index, this.props.value.x, this.props.value.y);
+        }
+    }
     
     transEndCallback(e) {
         if (!this.inTransition) return;
