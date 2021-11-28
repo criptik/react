@@ -22,7 +22,7 @@ class CardData {
             this.attrs = CardData.intToAttrs(x);
         }
         this.highlight = false;
-        this.imageWidth = '80px';
+        this.imageWidth = '80px';  // TODO: adjust for other screen widths
         this.shrinkGrowState = 0;
         // build the card Image
         this.cimg = new CardImage(this.attrs);
@@ -160,13 +160,9 @@ class CardGrid extends CardAry {
         this.ary[idx].highlight = false;
     }
 
+    // TODO: use this for narrower screens, etc.
     setImageWidth(idx, width) {
-        try {
-            this.ary[idx].imageWidth = `${width}px`;
-        }
-        catch(e) {
-            console.log(e, idx, width);
-        }
+        this.ary[idx].imageWidth = `${width}px`;
     }
     
     fillUntilHasTrip(dbg=this.dbg) {
@@ -194,22 +190,23 @@ class CardGrid extends CardAry {
     }
 
     // remove the triplet indicated by the idxs array
-    // return true if it was replaced, false if just deleted
+    // return the list of indexes which actually got replaced
+    // (used by shrinkGrow logic)
     tripRemoveReplace(idxs, dbg=this.dbg) {
-        // console.log(idxs);
-        let retval = true;
+        let retList = [];
         let revsortidxs = idxs.sort((a, b) => b - a);
         if (this.source.length < 3){
             revsortidxs.forEach((idx) => {
                 if (dbg) console.log(`this source < 3, deleting ${idx}`);
                 this.delete(idx);
             });
-            retval = false;
+            return [];
         }
         // at least 3 items in this.source
-        // with no extra rows, just removed idxs from source
+        // with no extra rows, just fill removed idxs from source
         else if (this.length() <= this.minlength) {
             idxs.forEach((idx) =>  this.fillFromSource(idx));
+            return idxs;  // replaced list is same as incoming list
         }
         else {
             if (dbg) console.log('last row special idxs=', revsortidxs);
@@ -218,13 +215,13 @@ class CardGrid extends CardAry {
                 if (idx >= this.minlength) {
                     this.delete(idx);
                     if (dbg) console.log(`last row delete ${idx}, length now ${this.length()}`);
-                    retval = false;
                 }
                 else {
                     // then move remaining last row items up to other empty slots
                     let fromidx = this.length() - 1;
                     this.move(fromidx, idx);
                     if (dbg) console.log(`move last row ${fromidx} to ${idx}, length now ${this.length()}`);
+                    retList.push(idx);
                 }
             });
             // special case, having gone from 18 to 15, let us check whether
@@ -233,11 +230,17 @@ class CardGrid extends CardAry {
             if ((this.length() > this.minlength) && this.includesTrip(dbg, this.minlength-1, 0)) {
                 if (true) console.log(`special case, push last row back to source`);
                 for (let n=0; n<this.cols; n++) {
-                    this.backToSource(this.length() - 1);
+                    let lastidx = this.length() - 1;
+                    this.backToSource(lastidx);
+                    // and remove from retList if there.
+                    let retidx = retList.indexOf(lastidx);
+                    if (retidx > -1) {
+                        retList.splice(retidx, 1);
+                    }
                 }
             }
         }
-        return retval;
+        return retList;
     }
 }
 

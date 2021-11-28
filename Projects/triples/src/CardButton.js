@@ -7,21 +7,24 @@ class CardButton extends React.Component {
         this.callbacks = 0;
         this.transformsCreated = 0;
         this.id = ++CardButton.cardButtonCounter;
-        this.setImageStyleEmpty();
+        this.shrinkGrowTime = 300;  // TODO: pass this down as a props
+        this.setImageStyleDefault();
     }
 
-    setImageStyleEmpty() {
-        this.imageStyle = {transition:'', transform:''};
+    setImageStyleDefault() {
+        this.imageStyle = {transition:'', transform:'scale(100%)'};
+    }
+
+    imageStyleClearTransition() {
+        // clear transition, leave transform unchanged
+        this.imageStyle = {...this.imageStyle, transition:''};
     }
     
     transEndCallback(e) {
         if (!this.inTransition) return;
         // clear out instance vars
         this.inTransition = false;
-        // seems hacky but leave imageStyle when pausing in shrunk state
-        if (this.props.value.shrinkGrowState === 1) {
-            this.setImageStyleEmpty();
-        }
+        this.imageStyleClearTransition();
         this.callbacks++;
         // console.log(`CardButton ${this.props.value} transition to ${this.imgRef.current.style.transform} finished, ${e.elapsedTime} `);
         this.imgRef.current.removeEventListener('transitionend', this.transEndCallback.bind(this));
@@ -41,10 +44,10 @@ class CardButton extends React.Component {
         let sgstate = this.props.value.shrinkGrowState;
         if (sgstate !== 0) {
             this.transformsCreated++;
-            // keep imageStyle in longer lived location in case re-rendered
+            let scaleTargetPct = (sgstate === 1 ? 100 : 0);
             this.imageStyle = {
-                transition : 'transform 300ms',
-                transform : (sgstate === 1 ? 'scale(100%)' : 'scale(0%)'),
+                transition : `transform ${this.shrinkGrowTime}ms`,
+                transform : `scale(${scaleTargetPct}%)`,
             }
             // console.log(`${this.props.value}, shrinkGrow=${this.props.value.shrinkGrowState}, id=${this.id}`);
             this.props.value.shrinkGrowState = 0;

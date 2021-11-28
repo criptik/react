@@ -81,8 +81,6 @@ class Game extends React.Component {
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
         this.autoClick = this.demoModeSwitchValue;
         this.pauseWithHighlightsTime = 300;
-        this.pauseWithBlanksTime = 300;
-        this.shrinkGrowTime = 50;
         this.useShrinkGrow = true;
         
         this.clickList = [];
@@ -138,12 +136,10 @@ class Game extends React.Component {
     checkAutoClick() {
         if (this.autoClick) {
             this.pauseWithHighlightsTime = 1500;
-            this.pauseWithBlanksTime = 500;
             this.autoClickLoop();
         }
         else {
             this.pauseWithHighlightsTime = 300;
-            this.pauseWithBlanksTime = 300;
         }
     }
     
@@ -190,10 +186,10 @@ class Game extends React.Component {
     }
     
     async cardsImageSizeChange(cardIdxs, shouldGrow) {
-        let firstIdx = cardIdxs[0];
+        let idxTransEnd = cardIdxs.slice(-1);
         this.shrinkGrowPromise = new Promise((resolve) => {
-            this.newgrid.ary[firstIdx].onTransEnd = (e) => {
-                // console.log(`in onTransEnd callback for grow=${shouldGrow}, idx=${firstIdx} ${e.elapsedTime}`);
+            this.newgrid.ary[idxTransEnd].onTransEnd = (e) => {
+                // console.log(`in onTransEnd callback for grow=${shouldGrow}, idx=${idxTransEnd} ${e.elapsedTime}`);
                 resolve();
             };
         });
@@ -201,40 +197,24 @@ class Game extends React.Component {
         cardIdxs.forEach((idx) =>  this.newgrid.ary[idx].shrinkGrowState = (shouldGrow ? 1 : -1));
         this.setGridState();
         this.forceUpdate();
-        // console.log(`before await promise for grow=${shouldGrow}, idx=${firstIdx}`);
+        // console.log(`before await promise for grow=${shouldGrow}, idx=${idxTransEnd}`);
         await this.shrinkGrowPromise;
-        // console.log(`return from shrinkGrowPromise, idx=${firstIdx}`);
+        // console.log(`return from shrinkGrowPromise, idx=${idxTransEnd}`);
     }
 
-    async useBlankReplacement() {
-        this.clickList.forEach((idx) =>  this.newgrid.fillWithBlank(idx));
-        await sleep(this.pauseWithBlanksTime);
-        this.setGridState();
-        // actual replacement
-        this.newgrid.tripRemoveReplace(this.clickList);
-    }
-    
     async handleTripleRemoval() {
         // this.clickList.forEach(idx => this.newgrid.clearHighlight(idx));
         // before refilling, shrink old img size
-        // logic to use before actual replacement
-        if (this.useShrinkGrow) {
-            // shrinking
-            await this.cardsImageShrink(this.clickList);
-            // actual replacement
-            let allStillThere = this.newgrid.tripRemoveReplace(this.clickList);
-            // console.log('finished tripRemoveReplace', this.clickList);
-            // growing
-            if (allStillThere) {
-                await this.cardsImageGrow(this.clickList);
-                // console.log(`returned from await cardsImageGrow`);
-            } else {
-                console.log('not allStillThere', this.clickList);
-            }
-        }
-        else {
-            this.useBlankReplacement();
-        }
+        // shrinkGrow actions
+        // shrinking
+        await this.cardsImageShrink(this.clickList);
+        // actual replacement, return is a list of replaced indexes
+        let replacedList = this.newgrid.tripRemoveReplace(this.clickList);
+        // console.log('finished tripRemoveReplace', this.clickList, replacedList);
+
+        // growing
+        await this.cardsImageGrow(replacedList);
+        // console.log(`returned from await cardsImageGrow`);
 
         // finish up and get ready for next
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
