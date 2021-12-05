@@ -388,10 +388,22 @@ class Game extends React.Component {
             hintButtonStyle.animationDuration = "600ms";
             hintButtonStyle.animationIterationCount = "1";
         }
-                
+
+        let fingerStyle = {position:"absolute",
+                           left:"300px",
+                           top:"150px",
+                           visibility:"hidden",
+                          };
+        if (this.state.elapsedSecs > 5) {
+            fingerStyle = {...fingerStyle,
+                           transition:"transform 1000ms",
+                           transform:"translateX(-200px)",
+                          };
+        }
+        
         // let showDbg = false;
         return (
-            <div>
+            <div position="relative">
               <select name="gameType" value={this.gameType} onChange={this.handleGameTypeChange.bind(this)}>
                 <option value="Arcade">Arcade</option>
                 <option value="Classic">Classic</option>
@@ -440,6 +452,12 @@ class Game extends React.Component {
                   />
                 </div>
               </div>
+              <img alt="missing hand"
+                   src="clipart533971.png"
+                   height="auto"
+                   width="20px"
+                   style={fingerStyle}
+              />
             </div>
         );
     }

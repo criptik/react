@@ -22,7 +22,7 @@ class CardData {
             this.attrs = CardData.intToAttrs(x);
         }
         this.highlight = false;
-        this.imageWidth = '80px';  // TODO: adjust for other screen widths
+        this.imageWidth = '90px';  // TODO: adjust for other screen widths
         this.shrinkGrowState = 0;
         // build the card Image
         this.cimg = new CardImage(this.attrs);
