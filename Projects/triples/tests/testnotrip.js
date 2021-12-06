@@ -1,6 +1,6 @@
 import * as process from 'process';
 import * as _ from 'underscore';
-import {CardGrid, CardAry, CardData} from './src/carddata.js';
+import {CardGrid, CardAry, CardData} from '../src/CardData.js';
 import * as assert from 'assert';
 
 function getRandomInt(min, max) {

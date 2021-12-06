@@ -1,5 +1,5 @@
 import * as _ from 'underscore';
-import CardImage from "../src/cardImage.js";
+import CardImage from "../src/CardImage.js";
 
 // function arrayEquals(a, b) {
 //     return Array.isArray(a) &&

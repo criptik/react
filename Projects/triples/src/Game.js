@@ -3,7 +3,7 @@ import React from 'react';
 import * as _ from 'underscore';
 // import NumericInput from 'react-numeric-input';
 import './index.css';
-import {CardGrid, CardData, GridSnapshot} from './carddata.js';
+import {CardGrid, CardData, GridSnapshot} from './CardData.js';
 import Board from './Board.js';
 import ElapsedTime from './ElapsedTime.js';
 // import * as assert from 'assert';
@@ -88,8 +88,10 @@ class Game extends React.Component {
         this.numtrips = this.numwrong = 0;
         this.snapshotStartTime = 0;
         this.snapshots = [];
-        this.savedFinalSnapshot = false;
         this.studyMode = false;
+        this.hintsUsed = 0;
+        this.hintsAllowed = 0;  // TODO: make this configurable
+        this.sawGameOver = false;
         this.setState({
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
@@ -178,10 +180,6 @@ class Game extends React.Component {
         this.setState({
             grid: this.newgrid,
         });
-    }
-
-    growPercentages() {
-        return [0, 20, 40, 60, 80];
     }
 
     cardsImageGrow(cardIdxs) {
@@ -343,7 +341,8 @@ class Game extends React.Component {
             this.setGridState();
             return;
         }
-        
+
+        this.hintsUsed++;
         let finisher = this.findTripThatFinishesClickList();
         // console.log(this.clickList, finisher, this.state.grid.tripsFound);
         if (finisher.length === 0) {
@@ -360,25 +359,40 @@ class Game extends React.Component {
         if (this.elapsedTimer) clearInterval(this.elapsedTimer);
         this.elapsedTimer = setInterval(() => this.updateElapsed.bind(this)(), 1000);
     }
+
+    checkRecordScore() {
+        // but only if legal
+        if (this.gameType.includes('Demo')) {
+            this.noSaveReason = 'Demo';
+            return;
+        }
+        if (this.hintsUsed > this.hintsAllowed) {
+            this.noSaveReason = 'Hint limit exceeded';
+            return;
+        }
+        this.noSaveReason = null;
+        let isArcade = this.gameType.includes('Arcade');
+        let ary = (isArcade ? this.lastTenScores.arcade : this.lastTenScores.classic);
+        let val = (isArcade ? this.numTrips : this.state.elapsedSecs);
+        ary.unshift(val);
+        ary.length = Math.min(ary.length, 10);
+        window.localStorage.lastTenTripScores = JSON.stringify(this.lastTenScores);
+    }
     
     updateElapsed() {
         if (!this.state.paused && !this.state.gameOver) {
             let newElapsed = this.state.elapsedSecs + 1;
             this.elapsedSecs = newElapsed;
-            let isGameOver = (this.gameType.includes('Arcade') && newElapsed === 60);   
+            let isGameOver = (this.gameType.includes('Arcade') && newElapsed >= 10);   
             if (isGameOver) {
                 this.stopAutoClick = true;
                 this.autoClick = false;
                 clearInterval(this.elapsedTimer);
-                // get score
-                this.lastTenScores.arcade.unshift(this.numtrips);
-                this.lastTenScores.arcade.length = Math.min(this.lastTenScores.arcade.length, 10);
-                window.localStorage.lastTenTripScores = JSON.stringify(this.lastTenScores);
             }
             this.setState({
                 elapsedSecs: newElapsed,
-                gameOver : isGameOver,
-                lastTenScores : this.lastTenScores,
+                gameOver: isGameOver,
+                lastTenScores: this.lastTenScores,
             });
         }
         
@@ -415,11 +429,27 @@ class Game extends React.Component {
             elapsedSecs: snapshot.elapsedSecs,
         });
     }
+
+    checkHandleGameOver() {
+        // do one time things when game ends
+        if (this.state.gameOver && !this.sawGameOver) {
+            this.sawGameOver = true;
+            clearInterval(this.elapsedTimer);
+            this.stopAutoClick = true;
+            this.autoClick = false;
+            // save final snapshot
+            this.snapshots.push(new GridSnapshot(this.state.grid.ary, [], this.elapsedSecs - this.snapshotStartTime));
+            // record score if it was a legal game
+            this.checkRecordScore();
+        }
+    }
     
     render() {
         function aryAverage(ary) {
             return ary.reduce((a, b) => a + b, 0) / ary.length;
         }
+        this.noSaveReason = null;
+        this.checkHandleGameOver();
         let nbsp = String.fromCharCode(160);
         let nbspx4 = nbsp.repeat(4);
         let tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
@@ -449,12 +479,6 @@ class Game extends React.Component {
                            transition:"transform 1000ms",
                            transform:"translateX(-200px)",
                           };
-        }
-        // save final snapshot if game over and not already saved
-        if (this.state.gameOver && !this.savedFinalSnapshot) {
-            this.snapshots.push(new GridSnapshot(this.state.grid.ary, [], this.elapsedSecs - this.snapshotStartTime));
-            this.savedFinalSnapshot = true;
-            // console.log(this.snapshots);
         }
         
         // let showDbg = false;
@@ -503,6 +527,9 @@ class Game extends React.Component {
                   <div style={{clear: 'both'}}>
                   </div>
                 </div>
+              </div>
+              <div>
+                {(this.noSaveReason ? `Score not Saved: ${this.noSaveReason}` : '')}
               </div>
               <div className="game">
                 <div className="game-board">
