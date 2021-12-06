@@ -1,3 +1,4 @@
+import * as _ from 'underscore';
 import CardImage from "../src/cardImage.js";
 
 // function arrayEquals(a, b) {
@@ -126,13 +127,12 @@ class CardAry {
 }
 
 class CardGrid extends CardAry {
-    constructor(srcary, minrows=4, cols=3) {
-        super();
+    constructor(srcary, gridary=[], minrows=4, cols=3) {
+        super(gridary);
         this.source = srcary;
         this.minrows = minrows;
         this.cols = cols;
         this.minlength = this.minrows * this.cols;
-        this.blankCard = new CardData(null);
     }
 
     pushFromSource() {
@@ -141,10 +141,6 @@ class CardGrid extends CardAry {
     
     fillFromSource(destidx) {
         this.replace(destidx, this.source.shift());
-    }
-
-    fillWithBlank(destidx) {
-        this.replace(destidx, this.blankCard);
     }
 
     backToSource(srcidx) {
@@ -246,5 +242,40 @@ class CardGrid extends CardAry {
     }
 }
 
-export {CardGrid, CardAry, CardData};
+class GridSnapshot extends CardGrid {
+    constructor(gridary, clickList, elapsedSecs) {
+        super([], Array.from(gridary));
+        this.elapsedSecs = elapsedSecs;
+        this.clickList = Array.from(clickList);
+        this.tripsFoundIdx = 0;
+    }
+
+    clearAllCardStatus() {
+        let allCardsAry = _.range(0, this.length());
+        allCardsAry.forEach((idx) => {
+            this.clearHighlight(idx);
+            this.ary[idx].shrinkGrowState = 0;
+        });
+    }
+
+    highlightTriple(tripIdxs) {
+        // console.log(`calling highlightTriple with ${tripIdxs}`);
+        this.clearAllCardStatus();
+        tripIdxs.forEach((idx) => this.setHighlight(idx));       
+    }
+    
+    highlightClickList() {
+        this.highlightTriple(this.clickList);
+    }
+
+    highlightNextTrip() {
+        this.highlightTriple(this.tripsFound[this.tripsFoundIdx]);
+        this.tripsFoundIdx++;
+        if (this.tripsFoundIdx >= this.tripsFound.length) {
+            this.tripsFoundIdx=0;
+        }
+    }
+}
+
+export {CardGrid, CardAry, CardData, GridSnapshot};
 

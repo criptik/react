@@ -3,7 +3,7 @@ import React from 'react';
 import * as _ from 'underscore';
 // import NumericInput from 'react-numeric-input';
 import './index.css';
-import {CardGrid, CardData} from './carddata.js';
+import {CardGrid, CardData, GridSnapshot} from './carddata.js';
 import Board from './Board.js';
 import ElapsedTime from './ElapsedTime.js';
 // import * as assert from 'assert';
@@ -17,7 +17,7 @@ class Game extends React.Component {
     constructor(props) {
         super(props);
         this.state = {};
-        this.state.grid = new CardGrid(null, 4, 3);
+        this.state.grid = new CardGrid(null);
         this.state.gameOver = false;
         this.state.paused = false;
         this.state.startTime = new Date();
@@ -74,7 +74,7 @@ class Game extends React.Component {
 
         let source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
-        this.newgrid = new CardGrid(source, 4, 3);
+        this.newgrid = new CardGrid(source);
         
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
@@ -86,6 +86,10 @@ class Game extends React.Component {
         
         this.clickList = [];
         this.numtrips = this.numwrong = 0;
+        this.snapshotStartTime = 0;
+        this.snapshots = [];
+        this.savedFinalSnapshot = false;
+        this.studyMode = false;
         this.setState({
             grid: this.newgrid,
             gameOver: (this.lastTripFound === null),
@@ -101,6 +105,7 @@ class Game extends React.Component {
     }
 
     async setPaused(val) {
+        if (this.studyMode) return;
         this.newgrid = this.state.grid;
         this.newpaused = !this.state.paused;
         if (this.newpaused) {
@@ -160,6 +165,10 @@ class Game extends React.Component {
         else {
             // this logic if it is a triple
             this.numtrips++;
+            // save state in snapshot in case study wanted
+            this.snapshots.push(new GridSnapshot(this.newgrid.ary, this.clickList, this.elapsedSecs - this.snapshotStartTime));
+            // console.log(this.snapshots);
+            this.snapshotStartTime = this.elapsedSecs;
             await this.handleTripleRemoval();
         }
         this.setGridState();
@@ -262,7 +271,7 @@ class Game extends React.Component {
     
     async handleClick(i) {
         // console.log(`click on square ${i}`);
-        if (this.state.paused || this.state.gameOver) return;
+        if (this.state.paused || this.state.gameOver || this.studyMode) return;
         this.newgrid = this.state.grid;
         if (this.clickList.includes(i)) {
             // remove from clicklist and unhighlight
@@ -323,8 +332,18 @@ class Game extends React.Component {
             this.forceUpdate();
         }
     }
+
     
-    async setHint() {
+    async onHintClick() {
+        // this behaves differently if we are in study mode
+        if (this.studyMode) {
+            this.newgrid = this.state.grid;
+            // console.log(this.newgrid.tripsFoundIdx, this.newgrid.tripsFound);
+            this.newgrid.highlightNextTrip();
+            this.setGridState();
+            return;
+        }
+        
         let finisher = this.findTripThatFinishesClickList();
         // console.log(this.clickList, finisher, this.state.grid.tripsFound);
         if (finisher.length === 0) {
@@ -334,7 +353,7 @@ class Game extends React.Component {
         }
         await this.handleClick(finisher[0]);
         await sleep(100);
-        // console.log('end of setHint', finisher[0]);
+        // console.log('end of onHintClick', finisher[0]);
     }
 
     setNewElapsedTimer() {
@@ -345,6 +364,7 @@ class Game extends React.Component {
     updateElapsed() {
         if (!this.state.paused && !this.state.gameOver) {
             let newElapsed = this.state.elapsedSecs + 1;
+            this.elapsedSecs = newElapsed;
             let isGameOver = (this.gameType.includes('Arcade') && newElapsed === 60);   
             if (isGameOver) {
                 this.stopAutoClick = true;
@@ -368,6 +388,33 @@ class Game extends React.Component {
         this.gameType = event.target.value;
         this.startNewGame();
     }
+
+    onStudyButtonClick() {
+        if (!this.studyMode) {
+            this.studyMode = true;
+            // sort snapshots by decreasing elapsedTime
+            this.snapshots.sort((a,b) => b.elapsedSecs - a.elapsedSecs);
+            // console.log(this.snapshots);
+            // display the first one
+            this.snapIdx = 0;
+        }
+        else {
+            this.snapIdx++;
+            if (this.snapIdx >= this.snapshots.length) {
+                this.snapIdx = 0;
+            }
+        }
+        let snapshot = this.snapshots[this.snapIdx];
+        // run logic to set tripsFound
+        snapshot.includesTrip();
+        // start by highlighting the clickList triple, if any
+        snapshot.highlightClickList();
+        
+        this.setState({
+            grid: snapshot,
+            elapsedSecs: snapshot.elapsedSecs,
+        });
+    }
     
     render() {
         function aryAverage(ary) {
@@ -388,7 +435,10 @@ class Game extends React.Component {
             hintButtonStyle.animationDuration = "600ms";
             hintButtonStyle.animationIterationCount = "1";
         }
-
+        let studyButtonStyle = {marginLeft: "20px", borderRadius: "20%"};
+        if (!this.state.gameOver) {
+            studyButtonStyle = {...studyButtonStyle, visibility:"hidden"};
+        }
         let fingerStyle = {position:"absolute",
                            left:"300px",
                            top:"150px",
@@ -400,6 +450,12 @@ class Game extends React.Component {
                            transform:"translateX(-200px)",
                           };
         }
+        // save final snapshot if game over and not already saved
+        if (this.state.gameOver && !this.savedFinalSnapshot) {
+            this.snapshots.push(new GridSnapshot(this.state.grid.ary, [], this.elapsedSecs - this.snapshotStartTime));
+            this.savedFinalSnapshot = true;
+            // console.log(this.snapshots);
+        }
         
         // let showDbg = false;
         return (
@@ -410,10 +466,10 @@ class Game extends React.Component {
                 <option value="ArcadeDemo">Arcade Demo</option>
                 <option value="ClassicDemo">Classic Demo</option>
               </select>
-              <button style={{marginLeft: "20px"}} onClick={() => this.startNewGame.bind(this)()}>
+              <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={() => this.startNewGame.bind(this)()}>
                 New
               </button>
-              <button style={{marginLeft: "20px"}} onClick={() => this.restartGame.bind(this)()}>
+              <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={() => this.restartGame.bind(this)()}>
                 {String.fromCharCode(10226)}
               </button>
               <span style={{fontSize: '15px', textAlign: 'right'}}>
@@ -424,12 +480,16 @@ class Game extends React.Component {
                 <div style={{fontSize: "15px", width: '300px'}}>
                   <ElapsedTime
                     elapsedSecs = {this.state.elapsedSecs}
+                    useDelta = {this.studyMode}
                   />
                   <button style={{fontSize: "20px", marginLeft: "20px", padding: "0px", borderWidth: "0px"}} onClick={() => this.setPaused.bind(this)()}>
                     {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
                   </button>
-                  <button style={hintButtonStyle} onClick={() => this.setHint.bind(this)()}>
+                  <button style={hintButtonStyle} onClick={() => this.onHintClick.bind(this)()}>
                     {String.fromCharCode(0x2139)}
+                  </button>
+                  <button style={studyButtonStyle} onClick={() => this.onStudyButtonClick.bind(this)()}>
+                    Study
                   </button>
                   <p/>
                   <p style={{fontSize: '15px', float: 'left'}}>

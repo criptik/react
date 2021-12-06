@@ -7,6 +7,9 @@ class ElapsedTime extends React.Component {
         let elapsedMins = Math.trunc(elapsedSecs / 60);
         elapsedSecs = elapsedSecs % 60;
         let elapsedStr = `${Number(elapsedMins).toString().padStart(2, ' ')}:${Number(elapsedSecs).toString().padStart(2, 0)}`;
+        if (this.props.useDelta) {
+            elapsedStr = `${String.fromCharCode(916)} ${elapsedStr}`;
+        }
         return (
             <span style={{fontSize: "20px"}}
               className="elapsedcomp">
