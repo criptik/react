@@ -8,11 +8,25 @@ import Board from './Board.js';
 import ElapsedTime from './ElapsedTime.js';
 // import * as assert from 'assert';
 
+var nbsp = String.fromCharCode(160);
+var nbspx4 = nbsp.repeat(4);
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-
+function tempAlert(msg,duration) {
+    var el = document.createElement("textarea");
+    el.setAttribute("style", `position:absolute;\
+                             top:0%; left:10%; \
+                             background-color:red; \
+                             border-color:black; \
+                             border-width:2px`);
+    el.innerHTML = msg;
+    setTimeout(function(){
+        el.parentNode.removeChild(el);
+    },duration);
+    document.body.appendChild(el);
+}
 class Game extends React.Component {
     constructor(props) {
         super(props);
@@ -28,14 +42,22 @@ class Game extends React.Component {
         this.gameType = 'Arcade';
     }
     componentDidMount() {
-        this.startNewGame();
+        // first screen shows last played game
+        this.startNewGame(false, true);
+        this.sawGameOver = true;
+        clearInterval(this.elapsedTimer);
+        this.setState({
+            gameOver: true,
+            elapsedSecs : 0,
+        });
+        // tempAlert('Game Started', 2000);
     }
 
     restartGame() {
         this.startNewGame(false);
     }
     
-    async startNewGame(useNew = true) {
+    async startNewGame(useNew = true, endImmediately=false) {
         // set stop flag to prevent further autoclick loops
         // then wait for current loop to finish
         this.stopAutoClick = true;
@@ -45,11 +67,18 @@ class Game extends React.Component {
         // and turn off stop flag
         this.stopAutoClick = false;
         this.demoModeSwitchValue = (this.gameType.includes('Demo'));
+        this.endImmediately = endImmediately;
+        this.gameLength = 60;
         
         let ishuf;
-        // set false here to repeat a previous game
-        if (useNew) {
-            // shuffle the cards 0-80
+        const lastTripShufJSON = window.localStorage.getItem('lastTripShuf');
+        // check whether we should repeat last game or start a new one
+        if (!useNew && lastTripShufJSON) {
+            ishuf = JSON.parse(lastTripShufJSON);
+            this.isReplay = true;
+        }
+        else {
+            // new game, shuffle the cards 0-80
             let unshuf = [];
             for (let i=0; i<81; i++) {
                 unshuf.push(i);
@@ -57,12 +86,8 @@ class Game extends React.Component {
             ishuf = _.shuffle(unshuf);
             this.isReplay = false;
         }
-        else {
-            ishuf = JSON.parse(window.localStorage.getItem('lastTripShuf'));
-            this.isReplay = true;
-        }
         window.localStorage.lastTripShuf = JSON.stringify(ishuf);
-        let lastTenJSON = window.localStorage.getItem('lastTenTripScores');
+        const lastTenJSON = window.localStorage.getItem('lastTenTripScores');
         if (lastTenJSON) {
             this.lastTenScores = JSON.parse(lastTenJSON);
         } else {
@@ -72,7 +97,7 @@ class Game extends React.Component {
             }
         }
 
-        let source = ishuf.map((n) => new CardData(n));
+        const source = ishuf.map((n) => new CardData(n));
         // For now, the only state we really need is the grid
         this.newgrid = new CardGrid(source);
         
@@ -94,7 +119,7 @@ class Game extends React.Component {
         this.sawGameOver = false;
         this.setState({
             grid: this.newgrid,
-            gameOver: (this.lastTripFound === null),
+            gameOver: (this.lastTripFound === null || endImmediately) ,
             startTime: new Date(),
             elapsedSecs : 0,
             lastTenScores : this.lastTenScores,
@@ -120,12 +145,12 @@ class Game extends React.Component {
                 // console.log('setpaused autoClickPromise complete', this.newgrid.length(), this.state.grid.length());
                 this.newgrid = this.state.grid;
             }
-            let allCardsAry = _.range(0, this.newgrid.length());
+            const allCardsAry = _.range(0, this.newgrid.length());
             await this.cardsImageShrink(allCardsAry);
         }
         else {
             this.setNewElapsedTimer();
-            let allCardsAry = _.range(0, this.newgrid.length());
+            const allCardsAry = _.range(0, this.newgrid.length());
             await this.cardsImageGrow(allCardsAry);
             // if unpausing with autoclick start things up again
             if (this.autoClick) {
@@ -158,7 +183,7 @@ class Game extends React.Component {
             this.setGridState();
             return;
         }
-        let isTrip = this.newgrid.isTrip(this.clickList[0], this.clickList[1], this.clickList[2]);
+        const isTrip = this.newgrid.isTrip(this.clickList[0], this.clickList[1], this.clickList[2]);
         if (!isTrip) {
             this.clickList.forEach(idx => this.newgrid.clearHighlight(idx));
             this.clickList = [];
@@ -197,7 +222,7 @@ class Game extends React.Component {
         if (cardIdxs.length === 0) {
             return;
         }
-        let idxTransEnd = cardIdxs.slice(-1);
+        const idxTransEnd = cardIdxs.slice(-1);
         this.shrinkGrowPromise = new Promise((resolve) => {
             // console.log(`setting onTransEnd(${shouldGrow} for ${idxTransEnd} from ${cardIdxs}`);
             this.newgrid.ary[idxTransEnd].onTransEnd = (e) => {
@@ -221,7 +246,7 @@ class Game extends React.Component {
         // shrinking
         await this.cardsImageShrink(this.clickList);
         // actual replacement, return is a list of replaced indexes
-        let growList = this.newgrid.tripRemoveReplace(this.clickList);
+        const growList = this.newgrid.tripRemoveReplace(this.clickList);
         // console.log('finished tripRemoveReplace', this.clickList, growList);
 
         // growing
@@ -301,9 +326,9 @@ class Game extends React.Component {
     findTripThatFinishesClickList() {
         // if all elems of B are in A, return the rest of A
         function aryDiff(aryA, aryB) {
-            let diff = Array.from(aryA);
+            const diff = Array.from(aryA);
             for (let elem of aryB) {
-                let idxa = diff.indexOf(elem);
+                const idxa = diff.indexOf(elem);
                 if (idxa === -1) {
                     return [];
                 }
@@ -314,7 +339,7 @@ class Game extends React.Component {
             return diff
         }
         for (let idx = 0; idx < this.state.grid.tripsFound.length; idx++) {
-            let diff = aryDiff(this.state.grid.tripsFound[idx], this.clickList);
+            const diff = aryDiff(this.state.grid.tripsFound[idx], this.clickList);
             if (diff.length !== 0) {
                 return diff;
             }
@@ -343,7 +368,7 @@ class Game extends React.Component {
         }
 
         this.hintsUsed++;
-        let finisher = this.findTripThatFinishesClickList();
+        const finisher = this.findTripThatFinishesClickList();
         // console.log(this.clickList, finisher, this.state.grid.tripsFound);
         if (finisher.length === 0) {
             this.hintError = true;
@@ -362,18 +387,19 @@ class Game extends React.Component {
 
     checkRecordScore() {
         // but only if legal
-        if (this.gameType.includes('Demo')) {
-            this.noSaveReason = 'Demo';
+        const noSaveReason = (this.gameType.includes('Demo') ? 'Demo' :
+                              this.hintsUsed > this.hintsAllowed ? 'Hint limit exceeded' :
+                              this.isReplay ? 'Game Replayed' :
+                              null);
+        if (noSaveReason != null) {
+            // no message if we are just starting up and showing last game screen
+            if (!this.endImmediately) tempAlert(`Score not Recorded: ${noSaveReason}`, 2000);
             return;
         }
-        if (this.hintsUsed > this.hintsAllowed) {
-            this.noSaveReason = 'Hint limit exceeded';
-            return;
-        }
-        this.noSaveReason = null;
-        let isArcade = this.gameType.includes('Arcade');
-        let ary = (isArcade ? this.lastTenScores.arcade : this.lastTenScores.classic);
-        let val = (isArcade ? this.numTrips : this.state.elapsedSecs);
+        // get here when it is valid to record score
+        const isArcade = this.gameType.includes('Arcade');
+        const ary = (isArcade ? this.lastTenScores.arcade : this.lastTenScores.classic);
+        const val = (isArcade ? this.numtrips : this.state.elapsedSecs);
         ary.unshift(val);
         ary.length = Math.min(ary.length, 10);
         window.localStorage.lastTenTripScores = JSON.stringify(this.lastTenScores);
@@ -381,9 +407,9 @@ class Game extends React.Component {
     
     updateElapsed() {
         if (!this.state.paused && !this.state.gameOver) {
-            let newElapsed = this.state.elapsedSecs + 1;
+            const newElapsed = this.state.elapsedSecs + 1;
             this.elapsedSecs = newElapsed;
-            let isGameOver = (this.gameType.includes('Arcade') && newElapsed >= 10);   
+            const isGameOver = (this.gameType.includes('Arcade') && newElapsed >= this.gameLength);   
             if (isGameOver) {
                 this.stopAutoClick = true;
                 this.autoClick = false;
@@ -400,7 +426,7 @@ class Game extends React.Component {
 
     handleGameTypeChange(event) {
         this.gameType = event.target.value;
-        this.startNewGame();
+        // this.startNewGame();
     }
 
     onStudyButtonClick() {
@@ -418,7 +444,7 @@ class Game extends React.Component {
                 this.snapIdx = 0;
             }
         }
-        let snapshot = this.snapshots[this.snapIdx];
+        const snapshot = this.snapshots[this.snapIdx];
         // run logic to set tripsFound
         snapshot.includesTrip();
         // start by highlighting the clickList triple, if any
@@ -443,22 +469,31 @@ class Game extends React.Component {
             this.checkRecordScore();
         }
     }
-    
-    render() {
-        function aryAverage(ary) {
-            return ary.reduce((a, b) => a + b, 0) / ary.length;
-        }
-        this.noSaveReason = null;
-        this.checkHandleGameOver();
-        let nbsp = String.fromCharCode(160);
-        let nbspx4 = nbsp.repeat(4);
-        let tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
-        let tripsFound = this.state.grid.tripsFound.length;
-        let tripsFoundChar = (tripsFound ? String.fromCharCode(9311 + tripsFound) : ' ');
-        let tripsFoundStatus = `${tripsFoundChar}`;
 
-        let gameStatus = (this.state.gameOver ? `${nbspx4}Game Over` : '');
-        let lastTenStatus = this.state.lastTenScores ? `${nbsp.repeat(6)}${aryAverage(this.state.lastTenScores.arcade).toFixed(1)} (avg)` : ' ';
+    GameControlRowOne() {
+        const gameOverStatus = (this.state.gameOver ? `${nbspx4}Game Over` : '');
+        return(
+            <div>
+            <select name="gameType" value={this.gameType} onChange={this.handleGameTypeChange.bind(this)}>
+              <option value="Arcade">Arcade</option>
+              <option value="Classic">Classic</option>
+              <option value="ArcadeDemo">Arcade Demo</option>
+              <option value="ClassicDemo">Classic Demo</option>
+            </select>
+            <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={this.startNewGame.bind(this)}>
+            New
+            </button>
+              <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={this.restartGame.bind(this)}>
+                {String.fromCharCode(10226)}
+              </button>
+            <span style={{fontSize: '15px', textAlign: 'right'}}>
+            {gameOverStatus}
+            </span>
+            </div>
+        );
+    }
+
+    GameControlRowTwo() {
         let hintButtonStyle = {marginLeft: "20px", borderRadius: "50%"};
         if (this.hintError) {
             hintButtonStyle.animationName = "shakeAnim";
@@ -469,82 +504,69 @@ class Game extends React.Component {
         if (!this.state.gameOver) {
             studyButtonStyle = {...studyButtonStyle, visibility:"hidden"};
         }
-        let fingerStyle = {position:"absolute",
-                           left:"300px",
-                           top:"150px",
-                           visibility:"hidden",
-                          };
-        if (this.state.elapsedSecs > 5) {
-            fingerStyle = {...fingerStyle,
-                           transition:"transform 1000ms",
-                           transform:"translateX(-200px)",
-                          };
+
+        return (
+            <div className="game-info" style={{marginTop: '10px'}}>
+              <div style={{fontSize: "15px", width: '300px'}}>
+                <ElapsedTime
+                  elapsedSecs = {this.state.elapsedSecs}
+                  useDelta = {this.studyMode}
+                />
+                <button style={{fontSize: "20px", marginLeft: "20px", padding: "0px", borderWidth: "0px"}} onClick={this.setPaused.bind(this)}>
+                  {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
+                </button>
+                <button style={hintButtonStyle} onClick={this.onHintClick.bind(this)}>
+                  {String.fromCharCode(0x2139)}
+                </button>
+                <button style={studyButtonStyle} onClick={this.onStudyButtonClick.bind(this)}>
+                  Study
+                </button>
+              </div>
+            </div>
+        );
+    }
+
+    GameInfoRow() {
+        function aryAverage(ary) {
+            return ary.reduce((a, b) => a + b, 0) / ary.length;
         }
-        
+
+        const tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
+        const tripsFound = this.state.grid.tripsFound.length;
+        const tripsFoundChar = (tripsFound ? String.fromCharCode(9311 + tripsFound) : ' ');
+        const tripsFoundStatus = `${tripsFoundChar}`;
+
+        let lastTenStatus = this.state.lastTenScores ?
+            `${nbsp.repeat(6)}${aryAverage(this.state.lastTenScores.arcade).toFixed(1)} (avg)` : ' ';
+        return (
+            <div className="game-info">
+              <p style={{fontSize: '15px', float: 'left'}}>
+                {tripsStatus}
+                {`${lastTenStatus}`}
+              </p>
+              <p style={{fontSize: '15px', float: 'right'}}>
+                {tripsFoundStatus}
+              </p>
+              <br/>
+            </div>
+        );
+    }
+    
+    render() {
+        this.checkHandleGameOver();
         // let showDbg = false;
         return (
             <div position="relative">
-              <select name="gameType" value={this.gameType} onChange={this.handleGameTypeChange.bind(this)}>
-                <option value="Arcade">Arcade</option>
-                <option value="Classic">Classic</option>
-                <option value="ArcadeDemo">Arcade Demo</option>
-                <option value="ClassicDemo">Classic Demo</option>
-              </select>
-              <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={() => this.startNewGame.bind(this)()}>
-                New
-              </button>
-              <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={() => this.restartGame.bind(this)()}>
-                {String.fromCharCode(10226)}
-              </button>
-              <span style={{fontSize: '15px', textAlign: 'right'}}>
-                {gameStatus}
-              </span>
-              <p/>
-              <div className="game-info">
-                <div style={{fontSize: "15px", width: '300px'}}>
-                  <ElapsedTime
-                    elapsedSecs = {this.state.elapsedSecs}
-                    useDelta = {this.studyMode}
-                  />
-                  <button style={{fontSize: "20px", marginLeft: "20px", padding: "0px", borderWidth: "0px"}} onClick={() => this.setPaused.bind(this)()}>
-                    {(this.state.paused) ? String.fromCharCode(0x23e9) : String.fromCharCode(0x23f8)}
-                  </button>
-                  <button style={hintButtonStyle} onClick={() => this.onHintClick.bind(this)()}>
-                    {String.fromCharCode(0x2139)}
-                  </button>
-                  <button style={studyButtonStyle} onClick={() => this.onStudyButtonClick.bind(this)()}>
-                    Study
-                  </button>
-                  <p/>
-                  <p style={{fontSize: '15px', float: 'left'}}>
-                    {tripsStatus}
-                    {`${lastTenStatus}`}
-                  </p>
-                  <p style={{fontSize: '15px', float: 'right'}}>
-                    {tripsFoundStatus}
-                  </p>
-                  <br/>
-                  <div style={{clear: 'both'}}>
-                  </div>
-                </div>
-              </div>
-              <div>
-                {(this.noSaveReason ? `Score not Saved: ${this.noSaveReason}` : '')}
-              </div>
+              {this.GameControlRowOne()}
+              {this.GameControlRowTwo()}
+              {this.GameInfoRow()}
+              <div style={{clear: 'both'}}/>
               <div className="game">
-                <div className="game-board">
-                  <Board
-                    grid = {this.state.grid}
-                    onClick = {(i) => this.handleClick.bind(this)(i)}
-                  />
-                </div>
+                <Board
+                  grid = {this.state.grid}
+                  onClick = {(i) => this.handleClick.bind(this)(i)}
+                />
               </div>
-              <img alt="missing hand"
-                   src="clipart533971.png"
-                   height="auto"
-                   width="20px"
-                   style={fingerStyle}
-              />
             </div>
         );
     }

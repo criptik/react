@@ -7,11 +7,11 @@ class MyButton extends React.Component {
     render() {
         let buttonStyle = {};
         let animTime = 'transform 500ms'
-        if (this.props.animState == 'Shrink') {
+        if (this.props.animState === 'Shrink') {
             buttonStyle.transition = animTime;
             buttonStyle.transform = 'scale(0%)';
         }
-        else if (this.props.animState == 'Grow') {
+        else if (this.props.animState === 'Grow') {
             buttonStyle.transition = animTime;
             buttonStyle.transform = 'scale(100%)';
         }
@@ -55,15 +55,29 @@ class Base extends React.Component {
     }
 
     render() {
-        let buttonStyle = {};
-        return ( <MyButton
-                   text=""
-                   imageUrl={this.state.canvasURL[this.state.coloridx]} //"image.png"
-                   highlight={this.state.highlight}
-                   onClick={()=>this.myclick()}
-                   animState = {this.state.animState}
-                 />
-               );
+        let simpleDiv =
+            <div onClick={this.myclick.bind(this)}>
+              <h3>
+                H3 Text of State
+              </h3>
+              <h3>
+                {`anim=${this.state.animState}`}
+                <br/>
+                {`highlight=${this.state.highlight}`}
+                <br/>
+                {`coloridx=${this.state.coloridx}`}
+              </h3>
+            </div>;
+        let animButton =
+            <MyButton
+              text=""
+              imageUrl={this.state.canvasURL[this.state.coloridx]} //"image.png"
+              highlight={this.state.highlight}
+              onClick={this.myclick.bind(this)}
+              animState = {this.state.animState}
+            />;
+        
+        return (this.state.coloridx === 0 ? simpleDiv : animButton );
     }
 
     myclick() {
@@ -74,7 +88,7 @@ class Base extends React.Component {
         this.setState({
             highlight: newhighlight,
             coloridx: newcoloridx,
-            animState: (this.clicks % 2 == 1 ? 'Shrink' : 'Grow'),
+            animState: (this.clicks % 2 === 1 ? 'Shrink' : 'Grow'),
         });
     }
 }
