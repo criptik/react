@@ -71,7 +71,7 @@ class CardAry {
     }
 
     isTrip(ia=0, ib=1, ic=2) {
-        let valid = (this.tripFinish(ia, ib).asint === this.ary[ic].asint);
+        const valid = (this.tripFinish(ia, ib).asint === this.ary[ic].asint);
         return(valid);
     }
 
@@ -82,7 +82,7 @@ class CardAry {
 
     // finish to make a triplet given 2 member indexes
     tripFinish(ia, ib) {
-        let fin=[];
+        const fin=[];
         for (let n=0; n<4; n++) {
             fin.push(CardAry.attrFinish(this.ary[ia].attr(n), this.ary[ib].attr(n)));
         }
@@ -90,17 +90,18 @@ class CardAry {
     }
 
     // return set of 3 indices if ary includes a triplet, else null
-    includesTrip(dbg = this.dbg, idx1start=this.length()-1, idx1end=0) {
+    includesTrip(dbg = this.dbg, idx1start=this.length()-1, idx1end=0, findAll=true) {
         this.tripsFound = [];
         for (let j1=idx1start; j1>=idx1end; j1--) {
             for (let j2=j1-1; j2>=0; j2--) {
-                let tripfin = this.tripFinish(j1, j2);
-                let tripfinint = tripfin.asint;
+                const tripfin = this.tripFinish(j1, j2);
+                const tripfinint = tripfin.asint;
                 for (let j3=j2-1; j3>=0; j3--) {
                     // if (j3 === j1 || j3 === j2) continue;
                     if (tripfinint === this.ary[j3].asint) {
                         if (dbg) console.log(j1, j2, j3, this.ary[j1].toString(), this.ary[j2].toString(), this.ary[j3].toString());
                         this.tripsFound.push([j1, j2, j3]);
+                        if (!findAll) return this.tripsFound[0];
                     }
                 }
             }
@@ -129,7 +130,7 @@ class CardAry {
 class CardGrid extends CardAry {
     constructor(srcary, gridary=[], minrows=4, cols=3) {
         super(gridary);
-        this.source = srcary;
+        this.source = Array.from(srcary);
         this.minrows = minrows;
         this.cols = cols;
         this.minlength = this.minrows * this.cols;
@@ -144,7 +145,7 @@ class CardGrid extends CardAry {
     }
 
     backToSource(srcidx) {
-        let dat = this.ary[srcidx];
+        const dat = this.ary[srcidx];
         this.delete(srcidx);
         this.source.unshift(dat);
     }
@@ -161,7 +162,7 @@ class CardGrid extends CardAry {
         this.ary[idx].imageWidth = `${width}px`;
     }
     
-    fillUntilHasTrip(dbg=this.dbg) {
+    fillUntilHasTrip(dbg=this.dbg, findAll=true) {
         let goalLength = this.minlength;
         // if no triple, add one more row
         // and repeat until we have a triple
@@ -170,10 +171,10 @@ class CardGrid extends CardAry {
                 this.fillFromSource(this.length());
             }
             if (dbg  && goalLength > this.minlength) console.log(`grid length is now ${this.length()}`);
-            let idx1start = this.length() - 1;
+            const idx1start = this.length() - 1;
             // for bigger than minimum array, j1 index must be in last row
-            let idx1end = (this.length() > this.minlength) ? this.length() - this.cols : 0;
-            let tripIdxs = this.includesTrip(dbg, idx1start, idx1end);
+            const idx1end = (this.length() > this.minlength) ? this.length() - this.cols : 0;
+            const tripIdxs = this.includesTrip(dbg, idx1start, idx1end, findAll);
             if (tripIdxs !== null) return tripIdxs;
             if (dbg) console.log(`no triple found with grid length ${this.length()}`);
             if (this.source.length < this.cols) {
@@ -188,11 +189,11 @@ class CardGrid extends CardAry {
     // remove the triplet indicated by the idxs array
     // return the list of indexes which actually got replaced
     // (used by shrinkGrow logic)
-    tripRemoveReplace(idxs, dbg=this.dbg) {
-        let retList = [];
-        let revsortidxs = idxs.sort((a, b) => b - a);
+    tripRemoveReplace(idxs, dbg=this.dbg, findAll=true) {
+        const retList = [];
+        const revsortidxs = idxs.sort((a, b) => b - a);
         if (this.source.length < 3){
-            let newGridLength = this.length() - 3;
+            const newGridLength = this.length() - 3;
             revsortidxs.forEach((idx) => {
                 if (dbg) console.log(`this source < 3, deleting ${idx}`);
                 this.delete(idx);
@@ -216,7 +217,7 @@ class CardGrid extends CardAry {
                 }
                 else {
                     // then move remaining last row items up to other empty slots
-                    let fromidx = this.length() - 1;
+                    const fromidx = this.length() - 1;
                     this.move(fromidx, idx);
                     if (dbg) console.log(`move last row ${fromidx} to ${idx}, length now ${this.length()}`);
                     retList.push(idx);
@@ -225,13 +226,13 @@ class CardGrid extends CardAry {
             // special case, having gone from 18 to 15, let us check whether
             // a trip exists in the first 12 and if so, trim this down to 12
             // by pushing back to source
-            if ((this.length() > this.minlength) && this.includesTrip(dbg, this.minlength-1, 0)) {
+            if ((this.length() > this.minlength) && this.includesTrip(dbg, this.minlength-1, 0, findAll)) {
                 if (true) console.log(`special case, push last row back to source`);
                 for (let n=0; n<this.cols; n++) {
-                    let lastidx = this.length() - 1;
+                    const lastidx = this.length() - 1;
                     this.backToSource(lastidx);
                     // and remove from retList if there.
-                    let retidx = retList.indexOf(lastidx);
+                    const retidx = retList.indexOf(lastidx);
                     if (retidx > -1) {
                         retList.splice(retidx, 1);
                     }
@@ -251,7 +252,7 @@ class GridSnapshot extends CardGrid {
     }
 
     clearAllCardStatus() {
-        let allCardsAry = _.range(0, this.length());
+        const allCardsAry = _.range(0, this.length());
         allCardsAry.forEach((idx) => {
             this.clearHighlight(idx);
             this.ary[idx].shrinkGrowState = 0;

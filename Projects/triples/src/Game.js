@@ -31,16 +31,33 @@ class Game extends React.Component {
     constructor(props) {
         super(props);
         this.state = {};
-        this.state.grid = new CardGrid(null);
+        this.state.grid = new CardGrid([]);
         this.state.gameOver = false;
         this.state.paused = false;
         this.state.startTime = new Date();
-        this.demoModeSwitchValue = false;
         this.autoClickPromise = null;
         this.stopAutoClick = false;
         this.numPromise = 0;
-        this.gameType = 'Arcade';
+        const arcadeDefault = {timeLimitSecs: 60,
+                               useDemo : false,
+                               filterFunc : null,
+                              };
+        const classicDefault = {...arcadeDefault, timeLimitSecs: 0};
+        this.gameTypeMap = new Map(Object.entries({
+            'Arcade'  : arcadeDefault ,
+            'Classic' : classicDefault,
+            'Arcade Easy' : {...arcadeDefault, filterFunc : n => CardData.intToAttrs(n)[3] === 0},
+            'Arcade Demo' : {...arcadeDefault, useDemo: true},
+            'Classic Demo' : {...classicDefault, useDemo: true},
+        }));
+        this.setupGameType('Arcade');
     }
+
+    setupGameType(name) {
+        this.gameTypeName = name;
+        this.gameTypeObj =  this.gameTypeMap.get(name);
+    }
+    
     componentDidMount() {
         // first screen shows last played game
         this.startNewGame(false, true);
@@ -66,9 +83,7 @@ class Game extends React.Component {
         // console.log(`after await in startNewGame, ${this.numPromise}`);
         // and turn off stop flag
         this.stopAutoClick = false;
-        this.demoModeSwitchValue = (this.gameType.includes('Demo'));
         this.endImmediately = endImmediately;
-        this.gameLength = 60;
         
         let ishuf;
         const lastTripShufJSON = window.localStorage.getItem('lastTripShuf');
@@ -79,22 +94,23 @@ class Game extends React.Component {
         }
         else {
             // new game, shuffle the cards 0-80
-            let unshuf = [];
-            for (let i=0; i<81; i++) {
-                unshuf.push(i);
+            let unshuf = _.range(0, 81);
+            if (this.gameTypeObj.filterFunc) {
+                unshuf = unshuf.filter(this.gameTypeObj.filterFunc);
             }
             ishuf = _.shuffle(unshuf);
             this.isReplay = false;
         }
         window.localStorage.lastTripShuf = JSON.stringify(ishuf);
-        const lastTenJSON = window.localStorage.getItem('lastTenTripScores');
+        const lastTenScoresStorageName = 'lastTenTripScores';
+        // uncomment to clear (like for new version)
+        // window.localStorage.removeItem(lastTenScoresStorageName);
+        const lastTenJSON = window.localStorage.getItem(lastTenScoresStorageName);
         if (lastTenJSON) {
             this.lastTenScores = JSON.parse(lastTenJSON);
         } else {
-            this.lastTenScores = {
-                arcade: [],
-                classic: [],
-            }
+            this.lastTenScores = {};
+            this.gameTypeMap.keys().forEach((name) => this.lastTenScores[name] = []);
         }
 
         const source = ishuf.map((n) => new CardData(n));
@@ -104,10 +120,10 @@ class Game extends React.Component {
         // start by filling grid with min rows
         // this.state.grid.minrows = 3;
         this.lastTripFound = this.newgrid.fillUntilHasTrip();
-        this.autoClick = this.demoModeSwitchValue;
         this.pauseWithHighlightsTime = 300;
         this.autoClickWaitTime = 400;
         this.useShrinkGrow = true;
+        this.autoClick = this.gameTypeObj.useDemo;
         
         this.clickList = [];
         this.numtrips = this.numwrong = 0;
@@ -317,12 +333,6 @@ class Game extends React.Component {
     initBoard() {
     }
 
-    demoModeSwitchChange() {
-        this.demoModeSwitchValue = ! this.demoModeSwitchValue;
-        this.autoClick = this.demoModeSwitchValue;
-        this.checkAutoClick();
-    }
-
     findTripThatFinishesClickList() {
         // if all elems of B are in A, return the rest of A
         function aryDiff(aryA, aryB) {
@@ -387,7 +397,7 @@ class Game extends React.Component {
 
     checkRecordScore() {
         // but only if legal
-        const noSaveReason = (this.gameType.includes('Demo') ? 'Demo' :
+        const noSaveReason = (this.gameTypeObj.useDemo ? 'Demo' :
                               this.hintsUsed > this.hintsAllowed ? 'Hint limit exceeded' :
                               this.isReplay ? 'Game Replayed' :
                               null);
@@ -397,9 +407,9 @@ class Game extends React.Component {
             return;
         }
         // get here when it is valid to record score
-        const isArcade = this.gameType.includes('Arcade');
-        const ary = (isArcade ? this.lastTenScores.arcade : this.lastTenScores.classic);
-        const val = (isArcade ? this.numtrips : this.state.elapsedSecs);
+        const ary = this.lastTenScores[this.gameTypeName];
+        // score is number of trips unless in classic mode, where it is number of seconds
+        const val = (this.gameTypeObj.timeLimitSecs > 0 ? this.numtrips : this.state.elapsedSecs);
         ary.unshift(val);
         ary.length = Math.min(ary.length, 10);
         window.localStorage.lastTenTripScores = JSON.stringify(this.lastTenScores);
@@ -409,7 +419,7 @@ class Game extends React.Component {
         if (!this.state.paused && !this.state.gameOver) {
             const newElapsed = this.state.elapsedSecs + 1;
             this.elapsedSecs = newElapsed;
-            const isGameOver = (this.gameType.includes('Arcade') && newElapsed >= this.gameLength);   
+            const isGameOver = (newElapsed === this.gameTypeObj.timeLimitSecs);
             if (isGameOver) {
                 this.stopAutoClick = true;
                 this.autoClick = false;
@@ -425,8 +435,8 @@ class Game extends React.Component {
     }
 
     handleGameTypeChange(event) {
-        this.gameType = event.target.value;
-        // this.startNewGame();
+        this.setupGameType(event.target.value);
+        this.startNewGame(true, true);
     }
 
     onStudyButtonClick() {
@@ -474,11 +484,8 @@ class Game extends React.Component {
         const gameOverStatus = (this.state.gameOver ? `${nbspx4}Game Over` : '');
         return(
             <div>
-            <select name="gameType" value={this.gameType} onChange={this.handleGameTypeChange.bind(this)}>
-              <option value="Arcade">Arcade</option>
-              <option value="Classic">Classic</option>
-              <option value="ArcadeDemo">Arcade Demo</option>
-              <option value="ClassicDemo">Classic Demo</option>
+            <select name="gameType" value={this.gameTypeName} onChange={this.handleGameTypeChange.bind(this)}>
+              {Array.from(this.gameTypeMap.keys()).map( (name) => <option value={name}>{name}</option>)}
             </select>
             <button style={{marginLeft: "20px", borderRadius: "20%"}} onClick={this.startNewGame.bind(this)}>
             New
@@ -528,7 +535,7 @@ class Game extends React.Component {
 
     GameInfoRow() {
         function aryAverage(ary) {
-            return ary.reduce((a, b) => a + b, 0) / ary.length;
+            return (ary.length === 0 ? 0 : ary.reduce((a, b) => a + b, 0) / ary.length);
         }
 
         const tripsStatus = `${String.fromCharCode(9989)} ${this.numtrips} ${nbspx4} ${String.fromCharCode(10060)} ${this.numwrong}`;
@@ -537,7 +544,7 @@ class Game extends React.Component {
         const tripsFoundStatus = `${tripsFoundChar}`;
 
         let lastTenStatus = this.state.lastTenScores ?
-            `${nbsp.repeat(6)}${aryAverage(this.state.lastTenScores.arcade).toFixed(1)} (avg)` : ' ';
+            `${nbsp.repeat(6)}${aryAverage(this.state.lastTenScores[this.gameTypeName]).toFixed(1)} (avg)` : ' ';
         return (
             <div className="game-info">
               <p style={{fontSize: '15px', float: 'left'}}>
