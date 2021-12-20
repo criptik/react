@@ -1,9 +1,11 @@
 import React from "react";
 import Header from "./Header";
+import { Button, IconButton } from '@material-ui/core';
+import SmileIcon from "@material-ui/icons/Mood";
 
 class StackObj {
     static nextid = 1;
-    
+
     constructor(val, operator, ops) {
         this.val = val;
         this.operator = operator;
@@ -11,7 +13,7 @@ class StackObj {
         this.id = StackObj.nextid++;
         console.log(this);
     }
-
+X
     addOpInfo(operator, ops) {
         this.operator = operator;
         this.ops = ops;
@@ -34,6 +36,11 @@ class RpcalcContainer extends React.Component {
     state = {
         vals: [],
     };
+
+    sayHi() {
+        alert('Hi');
+    }
+    
     
     componentDidMount() {
         let initvals = [];
@@ -76,6 +83,12 @@ class RpcalcContainer extends React.Component {
                     </div>
                     )})}
                 </div>
+              <Button variant="contained">
+                Hello World
+              </Button>
+              <IconButton onClick={this.sayHi.bind(this)}>
+                <SmileIcon />
+              </IconButton>              
             </React.Fragment>
         );
     }
