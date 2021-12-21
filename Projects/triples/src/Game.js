@@ -378,13 +378,7 @@ class Game extends React.Component {
     
     async onHintClick() {
         // this behaves differently if we are in study mode
-        if (this.studyMode) {
-            this.newgrid = this.state.grid;
-            // console.log(this.newgrid.tripsFoundIdx, this.newgrid.tripsFound);
-            this.newgrid.highlightNextTrip();
-            this.setGridState();
-            return;
-        }
+        if (this.studyMode) return;
 
         this.hintsUsed++;
         if (this.hintsUsed ===  this.gameTypeObj.hintsAllowed) {
@@ -478,6 +472,14 @@ class Game extends React.Component {
         });
     }
 
+    onTripsFoundClick() {
+        if (!this.studyMode) return;
+        this.newgrid = this.state.grid;
+        // console.log(this.newgrid.tripsFoundIdx, this.newgrid.tripsFound);
+        this.newgrid.highlightNextTrip();
+        this.setGridState();
+    }
+
     checkHandleGameOver() {
         // do one time things when game ends
         if (this.state.gameOver && !this.sawGameOver) {
@@ -515,7 +517,7 @@ class Game extends React.Component {
 
     GameControlRowTwo() {
         let hintButtonStyle = {marginLeft: "20px", borderRadius: "50%"};
-        if (!this.studyMode && this.hintsUsed >= this.gameTypeObj.hintsAllowed) {
+        if (this.studyMode || this.hintsUsed >= this.gameTypeObj.hintsAllowed) {
             hintButtonStyle.visibility = 'hidden';
         }
         if (this.hintError) {
@@ -542,7 +544,7 @@ class Game extends React.Component {
                   Hint
                 </button>
                 <button style={studyButtonStyle} onClick={this.onStudyButtonClick.bind(this)}>
-                  Study
+                  Gaps
                 </button>
               </div>
             </div>
@@ -566,7 +568,22 @@ class Game extends React.Component {
         const tripsFound = this.state.grid.tripsFound.length;
         const tripsFoundChar = (tripsFound ? String.fromCharCode(9311 + tripsFound) : ' ');
         const tripsFoundStatus = `${tripsFoundChar}`;
-
+        let tripsFoundElement;
+        if (this.studyMode) {
+            tripsFoundElement = (
+                <button
+                  style={{fontSize: '20px', float: 'right', borderRadius: '50%'}}
+                  onClick={this.onTripsFoundClick.bind(this)}
+                >
+                  {tripsFoundStatus}
+                </button>);
+        }
+        else {
+            tripsFoundElement = (
+                <p style={{fontSize: '20px', float: 'right',}}>
+                  {tripsFoundStatus}
+                </p>);
+        }                              
         // console.log(this.state.lastTenScores);
         let lastTenStatus = this.getLastTenAverageText();
         return (
@@ -575,9 +592,7 @@ class Game extends React.Component {
                 {tripsStatus}
                 {`${lastTenStatus}`}
               </p>
-              <p style={{fontSize: '20px', float: 'right'}}>
-                {tripsFoundStatus}
-              </p>
+              {tripsFoundElement}
               <br/>
             </div>
         );
