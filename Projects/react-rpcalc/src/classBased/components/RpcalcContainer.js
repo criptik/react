@@ -2,6 +2,7 @@ import React from "react";
 import Header from "./Header";
 import { Button, IconButton } from '@material-ui/core';
 import SmileIcon from "@material-ui/icons/Mood";
+import {Stack, ListItem, Select, MenuItem} from "@mui/material";
 
 class StackObj {
     static nextid = 1;
@@ -39,6 +40,10 @@ class RpcalcContainer extends React.Component {
 
     sayHi() {
         alert('Hi');
+    }
+    
+    sayBye() {
+        alert('Bye');
     }
     
     
@@ -83,12 +88,32 @@ class RpcalcContainer extends React.Component {
                     </div>
                     )})}
                 </div>
-              <Button variant="contained">
-                Hello World
-              </Button>
-              <IconButton onClick={this.sayHi.bind(this)}>
-                <SmileIcon />
-              </IconButton>              
+              <Stack direction='row' style={{height:'30px'}} >
+                <Select defaultValue="Opt1" variant="outlined">
+                  <option value="Opt1" >Opt1</option>
+                  <option value="opt2">option 2</option>
+                  <option value="opt3">option3</option>
+                </Select>
+                <Button
+                  style={{
+                      textTransform: 'none',
+                      minWidth: 0,
+                      minHeight: 0,
+                      paddingLeft: '8px',
+                      paddingRight: '8px',
+                  }}
+                  variant="outlined"
+                  onClick={this.sayBye.bind(this)}
+                >
+                  New
+                </Button>
+                <IconButton size="small" variant="outlined" onClick={this.sayHi.bind(this)}>
+                  <SmileIcon fontSize="small"/>
+                </IconButton>
+                <ListItem>
+                  Item Text
+                </ListItem>
+              </Stack>
             </React.Fragment>
         );
     }
