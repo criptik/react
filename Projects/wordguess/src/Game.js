@@ -11,6 +11,8 @@ class Game extends Component {
             input: "",
             letterMap: {},
         };
+        this.answer = 'HELLO';
+        this.guessList = [];
     }
 
     doCompare(guess, base) {
@@ -42,59 +44,93 @@ class Game extends Component {
         return [exact, wrongplace];
     }
 
-    onKeyPress(letter) {
-        const newMap = this.state.letterMap;
-        const curval = newMap[letter];
-        console.log("Letter pressed", letter, 'curval: ', curval);
-        newMap[letter] = curval === undefined ? 1 : 2; 
-        this.setState( {
-            letterMap: newMap,
-        });
+    onKeyPress(key) {
+        console.log("Letter pressed", key);
+        if (key === '{enter}') {
+            const [exact, wrongplace] = this.doCompare(this.input, this.answer);
+            // console.log('exact:', exact, ', wrongplace:', wrongplace);
+            this.guessList.push({
+                guess: this.input,
+                exact,
+                wrongplace,
+            });
+            this.input = '';
+            this.keyboard.clearInput();
+        }
     }
 
     onChange(input) {
+        if (input.length > this.answer.length) {
+            input = input.substring(0, this.answer.length);
+            this.keyboard.setInput(input);        }
+        this.input = input;
         this.setState({ input });
         console.log("Input changed", input);
     }
-    
-    render() {
-        console.log('render', this.state.letterMap);
-        let redString = ' ';
-        let greenString = ' '
-        for (let letter in this.state.letterMap) {
-            const val = this.state.letterMap[letter];
-            if (val === 1) redString += ` ${letter}`;
-            if (val === 2) greenString += ` ${letter}`;
-        }
-        let letterGuesses = [];
-        const answer = 'HELLO';
-        for (let n=0; n<answer.length; n++) {
-            const chval = (n < this.state.input.length ? this.state.input[n] : ' ');
-            letterGuesses.push(
+
+    formatGuess(guessObj, submitted=false) {
+        let guessLine = [];
+        const guess = guessObj.guess;
+        // console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace);
+        for (let n=0; n < this.answer.length; n++) {
+            const chval = (n < guess.length ? guess[n] : ' ');
+            let bgcolor = 'white';
+            if (guessObj.exact.includes(n)) {
+                bgcolor = 'lightgreen';
+                this.greenString += ` ${chval}`;
+            }
+            else if (guessObj.wrongplace.includes(n)) {
+                bgcolor = 'yellow';
+                this.yellowString += ` ${chval}`;
+            }
+            else if (submitted) {
+                this.greyString += ` ${chval}`;
+            }
+            guessLine.push(
                 <div style={{
                     border: '1px solid black',
-                    backgroundColor: 'white',
+                    backgroundColor: bgcolor,
                     height: '20px',
                     width: '20px',
                     display: 'inline-block',
                     marginLeft: '5px',
+                    marginBottom: '5px',
                     textAlign: 'center',
                 }}>
                   {chval}
                 </div>
             );
         };
+        return guessLine;
+    }
+    
+    render() {
+        console.log('render');
+        this.yellowString = ' ';
+        this.greenString = ' ';
+        this.greyString = ' ';
+        let guessLines = [];
+        this.guessList.forEach( (guessObj) => {
+            guessLines.push(this.formatGuess(guessObj, true));
+            guessLines.push(<br/>);
+        });
+        const newObj = {
+            guess: this.state.input,
+            exact: [],
+            wrongplace: [],
+        };
+        guessLines.push(this.formatGuess(newObj, false));
         return (
             <div>
               <div>
-                {letterGuesses}
+                {guessLines}
               </div>
               <Keyboard
                 keyboardRef={r => (this.keyboard = r)}
                 onKeyPress = {this.onKeyPress.bind(this)}
                 onChange = {this.onChange.bind(this)}
                 theme={"hg-theme-default hg-layout-default myTheme"}
-              layoutName={this.state.layoutName}
+                layoutName={this.state.layoutName}
                 layout={{
                     default: [
                         "Q W E R T Y U I O P",
@@ -104,16 +140,21 @@ class Game extends Component {
                 }}
                 buttonTheme={[
                     {
-                        class: "hg-red",
-                        buttons: redString,
+                        class: "hg-yellow",
+                        buttons: this.yellowString,
                     },
                     {
                         class: "hg-green",
-                        buttons: greenString,
+                        buttons: this.greenString,
+                    },
+                    {
+                        class: "hg-grey",
+                        buttons: this.greyString,
                     }
+                    
                 ]}
                 display={{
-                    '{enter}' : 'submit',
+                    '{enter}' : 'enter',
                     '{bksp}' : '<<',
                 }}
               />
