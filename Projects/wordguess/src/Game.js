@@ -11,8 +11,20 @@ class Game extends Component {
             input: "",
             letterMap: {},
         };
-        this.answer = 'HELLO';
         this.guessList = [];
+        const URL = './sgb-words.txt';
+        let answerArray = [];
+        this.answer = ' ';
+        fetch(URL)
+            .then(data => data.text())
+            .then(text => {
+                // console.log('text is ', text);
+                answerArray = text.split('\n'); 
+                // console.log('answerArray', answerArray);
+                this.answer = answerArray[Math.floor(Math.random() * answerArray.length)].toUpperCase();
+                console.log('this.answer =', this.answer);
+                this.setState({answer: this.answer });
+            });
     }
 
     doCompare(guess, base) {
@@ -48,7 +60,7 @@ class Game extends Component {
         console.log("Letter pressed", key);
         if (key === '{enter}') {
             const [exact, wrongplace] = this.doCompare(this.input, this.answer);
-            // console.log('exact:', exact, ', wrongplace:', wrongplace);
+            console.log('exact:', exact, ', wrongplace:', wrongplace);
             this.guessList.push({
                 guess: this.input,
                 exact,
@@ -71,7 +83,7 @@ class Game extends Component {
     formatGuess(guessObj, submitted=false) {
         let guessLine = [];
         const guess = guessObj.guess;
-        // console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace);
+        console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace, 'this.answer', this.answer);
         for (let n=0; n < this.answer.length; n++) {
             const chval = (n < guess.length ? guess[n] : ' ');
             let bgcolor = 'white';
