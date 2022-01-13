@@ -14,9 +14,28 @@ class Game extends Component {
         };
         this.markGuessChars = true;
         this.useVirtKeyboard = false;
+        this.guessMustBeWord = true;
+        this.hintsMustBeUsed = true;
         this.answer = '';
     }
 
+    tempAlert(msg,duration,bgcolor='red') {
+        console.log(msg);
+        var el = document.createElement("div");
+        el.setAttribute("style", `position:absolute;\
+                             top:0%; left:10%; \
+                             background-color:${bgcolor}; \
+                             border-color:black; \
+                             border-width:1px; \
+                             `);
+        el.innerHTML = msg;
+        setTimeout(function(){
+            el.parentNode.removeChild(el);
+        },duration);
+        document.body.appendChild(el);
+        return new Promise(resolve => setTimeout(resolve,duration));
+    }
+    
     async componentDidMount() {
         await this.buildWordList();
         this.startNewGame();
@@ -26,6 +45,8 @@ class Game extends Component {
         this.gameOver = false;
         this.guessList = [];
         this.input = '';
+        this.exactPos = new Set();
+        this.yellowCharsMissing = {};
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         console.log('this.answer =', this.answer);
         this.setState({
@@ -42,6 +63,7 @@ class Game extends Component {
         console.log('data.text() complete');
         // console.log(text);
         this.wordList = await text.split('\n');
+        this.wordList = await this.wordList.map(word => word.toUpperCase());
         console.log('wordlist built');
     }
     
@@ -65,24 +87,73 @@ class Game extends Component {
             const gchar = gchars[n];
             if (gchar !== null && bchars.includes(gchar)) {
                 let pos = bchars.indexOf(gchar);
-                // console.log(`before, ${gchar}, ${bchars},  match at ${pos}`, wrongplace);
                 bchars[pos] = null;
                 wrongplace.push(n);
-                // console.log(`after, ${gchar}, ${bchars},`, wrongplace);
             }
         }
         return [exact, wrongplace];
     }
 
-    doInputSubmit() {
-        const [exact, wrongplace] = this.doCompare(this.input, this.answer);
-        // console.log('exact:', exact, ', wrongplace:', wrongplace);
-        this.guessList.push({
-            guess: this.input,
-            exact,
-            wrongplace,
+    usedAllHints(guess) {
+        let retval = true;
+        const guessAry = [...guess];
+        // we will look in the previous input submission record (if any)
+        if (this.guessList.length === 0) return true;
+        const prevGuessObj = this.guessList.slice(-1)[0];
+        this.greenCharsMissing = [];
+        this.yellowCharsMissing = [];
+        // first check previous exacts
+        prevGuessObj.exact.forEach( pos => {
+            const chr = prevGuessObj.guess[pos];
+            if (guessAry[pos] === chr) {
+                // clear so we don't reuse
+                guessAry[pos] = null;
+            }
+            else {
+                this.greenCharsMissing.push(chr);
+                retval = false;
+            }
         });
-        if (exact.length === this.answer.length) this.gameOver = true;
+        // then check the wrongPlace chars exist somewhere
+        prevGuessObj.wrongplace.forEach( pos => {
+            const chr = prevGuessObj.guess[pos];
+            const guessIdx = guessAry.indexOf(chr);
+            if (guessIdx >= 0) {
+                // clear so we don't reuse
+                guessAry[guessIdx] = null;
+            }
+            else {
+                this.yellowCharsMissing.push(chr);
+                retval = false;
+            }
+        });
+        return retval;
+    }
+
+    
+    async doInputSubmit() {
+        if (this.input.length !== this.answer.length) return;
+        if (this.guessMustBeWord && !this.wordList.includes(this.input)) {
+            await this.tempAlert('Guess must be a Word', 1500);
+        }
+        else if (this.hintsMustBeUsed && !this.usedAllHints(this.input)) {
+            // build alert message
+            const missingGreenHtml = `<span style="background-color:lightgreen;">${this.greenCharsMissing.join(',')}</span>`;
+            const missingYellowHtml = `<span style="background-color:yellow;">${this.yellowCharsMissing.join(',')}</span>`;
+            
+            await this.tempAlert(`Guess must use Hints: <br/> ${missingGreenHtml} ${missingYellowHtml}`, 3000, 'rgb(230,230,230)');
+        }
+        else {
+            // guess is legal, see how right it is
+            const [exact, wrongplace] = this.doCompare(this.input, this.answer);
+            // console.log('exact:', exact, ', wrongplace:', wrongplace);
+            this.guessList.push({
+                guess: this.input,
+                exact,
+                wrongplace,
+            });
+            if (exact.length === this.answer.length) this.gameOver = true;
+        }
         this.input = '';
         if (this.useVirtKeyboard) this.keyboard.clearInput();
         this.setState({
