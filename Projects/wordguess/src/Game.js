@@ -20,7 +20,7 @@ class Game extends Component {
     }
 
     tempAlert(msg,duration,bgcolor='red') {
-        console.log(msg);
+        // console.log(msg);
         var el = document.createElement("div");
         el.setAttribute("style", `position:absolute;\
                              top:0%; left:10%; \
@@ -60,7 +60,7 @@ class Game extends Component {
         const data = await fetch(URL);
         console.log('fetch complete');
         const text = await data.text();
-        console.log('data.text() complete');
+        // console.log('data.text() complete');
         // console.log(text);
         this.wordList = await text.split('\n');
         this.wordList = await this.wordList.map(word => word.toUpperCase());
@@ -94,56 +94,68 @@ class Game extends Component {
         return [exact, wrongplace];
     }
 
+    mostRecentGuess() {
+        return (this.guessList.length > 0 ? this.guessList.slice(-1)[0] : null);
+    }
+    
+    // returns two arrays of green missing and yellow missing if any
     usedAllHints(guess) {
-        let retval = true;
-        const guessAry = [...guess];
-        // we will look in the previous input submission record (if any)
-        if (this.guessList.length === 0) return true;
-        const prevGuessObj = this.guessList.slice(-1)[0];
-        this.greenCharsMissing = [];
-        this.yellowCharsMissing = [];
-        // first check previous exacts
-        prevGuessObj.exact.forEach( pos => {
-            const chr = prevGuessObj.guess[pos];
-            if (guessAry[pos] === chr) {
-                // clear so we don't reuse
-                guessAry[pos] = null;
-            }
-            else {
-                this.greenCharsMissing.push(chr);
-                retval = false;
-            }
-        });
-        // then check the wrongPlace chars exist somewhere
-        prevGuessObj.wrongplace.forEach( pos => {
-            const chr = prevGuessObj.guess[pos];
-            const guessIdx = guessAry.indexOf(chr);
-            if (guessIdx >= 0) {
-                // clear so we don't reuse
-                guessAry[guessIdx] = null;
-            }
-            else {
-                this.yellowCharsMissing.push(chr);
-                retval = false;
-            }
-        });
-        return retval;
+        // short circuit in certain situations
+        let greenCharsMissing = [];
+        let yellowCharsMissing = [];
+        if (this.hintsMustBeUsed && this.guessList.length > 0) {
+            const guessAry = [...guess];
+            // we will look in the previous input submission record (if any)
+            const prevGuessObj = this.mostRecentGuess();
+            // console.log('prevGuess', prevGuessObj);
+            // first check previous exacts
+            prevGuessObj.exact.forEach( pos => {
+                const chr = prevGuessObj.guess[pos];
+                if (guessAry[pos] === chr) {
+                    // clear so we don't reuse
+                    guessAry[pos] = null;
+                }
+                else {
+                    greenCharsMissing.push(chr);
+                }
+            });
+            // then check the wrongPlace chars exist somewhere
+            prevGuessObj.wrongplace.forEach( pos => {
+                const chr = prevGuessObj.guess[pos];
+                const guessIdx = guessAry.indexOf(chr);
+                if (guessIdx >= 0) {
+                    // clear so we don't reuse
+                    guessAry[guessIdx] = null;
+                }
+                else {
+                    yellowCharsMissing.push(chr);
+                }
+            });
+        }
+        return [greenCharsMissing, yellowCharsMissing];
     }
 
     
     async doInputSubmit() {
+        let legalGuess = true;  // assume this
         if (this.input.length !== this.answer.length) return;
+        // console.log('usedHintsObj', usedHintsObj);
         if (this.guessMustBeWord && !this.wordList.includes(this.input)) {
             await this.tempAlert('Guess must be a Word', 1500);
+            legalGuess = false;
         }
-        else if (this.hintsMustBeUsed && !this.usedAllHints(this.input)) {
-            // build alert message
-            const missingGreenHtml = `<span style="background-color:lightgreen;">${this.greenCharsMissing.join(',')}</span>`;
-            const missingYellowHtml = `<span style="background-color:yellow;">${this.yellowCharsMissing.join(',')}</span>`;
-            
-            await this.tempAlert(`Guess must use Hints: <br/> ${missingGreenHtml} ${missingYellowHtml}`, 3000, 'rgb(230,230,230)');
+        else if (this.hintsMustBeUsed) {
+            const [greenMissing, yellowMissing] = this.usedAllHints(this.input);
+            if (greenMissing.length > 0 || yellowMissing.length > 0) {
+                // build alert message
+                const missingGreenHtml = `<span style="background-color:lightgreen;">${greenMissing.join(',')}</span>`;
+                const missingYellowHtml = `<span style="background-color:yellow;">${yellowMissing.join(',')}</span>`;
+                await this.tempAlert(`Guess must use Hints: <br/> ${missingGreenHtml} ${missingYellowHtml}`,
+                                     3000, 'rgb(230,230,230)');
+                legalGuess = false;
+            }
         }
-        else {
+        if (legalGuess) {    
             // guess is legal, see how right it is
             const [exact, wrongplace] = this.doCompare(this.input, this.answer);
             // console.log('exact:', exact, ', wrongplace:', wrongplace);
@@ -154,6 +166,7 @@ class Game extends Component {
             });
             if (exact.length === this.answer.length) this.gameOver = true;
         }
+        // clean up input for the next time thru
         this.input = '';
         if (this.useVirtKeyboard) this.keyboard.clearInput();
         this.setState({
@@ -163,7 +176,7 @@ class Game extends Component {
     }
     
     onVirtKeyPress(key) {
-        console.log("Virt Key pressed", key);
+        // console.log("Virt Key pressed", key);
         if (key === '{enter}') {
             this.doInputSubmit();
         }
@@ -172,7 +185,7 @@ class Game extends Component {
     onRealKeyDown(event) {
         if (this.gameOver) return;
         let key = event.nativeEvent.key;
-        console.log("Real Key Down", key);
+        // console.log("Real Key Down", key);
         if (key === 'Enter') {
             this.doInputSubmit();
         }
@@ -198,7 +211,7 @@ class Game extends Component {
             this.keyboard.setInput(input);        }
         this.input = input;
         this.setState({ input });
-        console.log("Input changed", input);
+        // console.log("Input changed", input);
     }
 
     formatGuess(guessObj, submitted=false) {
@@ -206,7 +219,7 @@ class Game extends Component {
         const guess = guessObj.guess;
         // console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace, 'this.answer', this.answer);
         for (let n=0; n < this.answer.length; n++) {
-            const chval = (n < guess.length ? guess[n] : ' ');
+            const chval = (n < guess.length ? guess[n] : String.fromCharCode(160));
             let bgcolor = 'white';
             if (this.markGuessChars) {
                 if (guessObj.exact.includes(n)) {
@@ -231,6 +244,7 @@ class Game extends Component {
                     marginLeft: '5px',
                     marginBottom: '5px',
                     textAlign: 'center',
+                    // fontSize: '16px',
                     key: this.guessList.length,
                 }}>
                   {chval}
@@ -303,7 +317,7 @@ class Game extends Component {
 
     getGameOverLine() { 
         if (!this.gameOver) return (<Fragment></Fragment>);
-        const numGuesses = this.guessList.length;
+        const numGuesses = this.state.guessList.length;
         return (
             <div>
               {`Match after ${numGuesses} ${numGuesses === 1 ? 'guess' : 'guesses'}!`}
@@ -317,6 +331,13 @@ class Game extends Component {
               </button>
             </div>
         );
+    }
+
+    getUntriedChars() {
+        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.yellowString.includes(c) &&
+                                                        !this.greenString.includes(c) &&
+                                                        !this.greyString.includes(c));
+                
     }
     
     render() {
@@ -338,6 +359,8 @@ class Game extends Component {
             };
             guessLines.push(this.formatGuess(newObj, false));
         }
+        const untriedLine = (this.state.guessList.length === 0 ? ' ' :
+                             `Untried: ${this.getUntriedChars().join(' ')}`);
         return (
             <Fragment>
             <div
@@ -347,6 +370,7 @@ class Game extends Component {
               {guessLines}
               {this.getGameOverLine()}
             </div>
+              {untriedLine}
               {this.getVirtKeyboard()}
             </Fragment>
         );
