@@ -1,22 +1,31 @@
 import React, { Component, Fragment } from "react";
 import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
+import NumericInput from "react-numeric-input";
+import Switch from "react-switch";
 import "./index.css";
 
+const nbsp = String.fromCharCode(160);
 class Game extends Component {
     constructor() {
         super();
+        this.settings = {
+            wordlen: 5,
+            guessMustBeWord : true,
+            markGuessChars : true,            
+            hintsMustBeUsed : true,
+        };
         this.state = {
             layoutName: "default",
             input: "",
             letterMap: {},
             guessList: [],
+            useGamePage : false,
+            settings: this.settings,
         };
-        this.markGuessChars = true;
         this.useVirtKeyboard = false;
-        this.guessMustBeWord = true;
-        this.hintsMustBeUsed = true;
         this.answer = '';
+        this.focusRef = React.createRef();
     }
 
     tempAlert(msg,duration,bgcolor='red') {
@@ -37,26 +46,38 @@ class Game extends Component {
     }
     
     async componentDidMount() {
-        await this.buildWordList();
         this.startNewGame();
+        if (this.focusRef.current) {
+            this.focusRef.focus();
+        }
+    }
+    
+    componentDidUpdate() {
+        if (this.focusRef.current) {
+            this.focusRef.focus();
+        }
     }
 
-    startNewGame() {
+    async startNewGame() {
         this.gameOver = false;
         this.guessList = [];
         this.input = '';
-        this.exactPos = new Set();
-        this.yellowCharsMissing = {};
+        await this.buildWordList(this.settings.wordlen);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
             guessList: this.guessList,
         });
+        if (this.focusRef.current) {
+            this.focusRef.focus();
+        }
     }
     
-    async buildWordList() {
-        const URL = './sgb-words.txt';
+    async buildWordList(wordlen) {
+        if (wordlen === this.curAnswerLen) return;
+        this.curAnswerLen = wordlen;
+        const URL = `./ospd${wordlen}.txt`;
         const data = await fetch(URL);
         console.log('fetch complete');
         const text = await data.text();
@@ -64,7 +85,7 @@ class Game extends Component {
         // console.log(text);
         this.wordList = await text.split('\n');
         this.wordList = await this.wordList.map(word => word.toUpperCase());
-        console.log('wordlist built');
+        console.log(`wordlist for len ${wordlen} built`);
     }
     
     doCompare(guess, base) {
@@ -103,7 +124,7 @@ class Game extends Component {
         // short circuit in certain situations
         let greenCharsMissing = [];
         let yellowCharsMissing = [];
-        if (this.hintsMustBeUsed && this.guessList.length > 0) {
+        if (this.settings.hintsMustBeUsed && this.guessList.length > 0) {
             const guessAry = [...guess];
             // we will look in the previous input submission record (if any)
             const prevGuessObj = this.mostRecentGuess();
@@ -140,11 +161,11 @@ class Game extends Component {
         let legalGuess = true;  // assume this
         if (this.input.length !== this.answer.length) return;
         // console.log('usedHintsObj', usedHintsObj);
-        if (this.guessMustBeWord && !this.wordList.includes(this.input)) {
-            await this.tempAlert('Guess must be a Word', 1500);
+        if (this.settings.guessMustBeWord && !this.wordList.includes(this.input)) {
+            await this.tempAlert('Guess must be a Legal Scrabble Word', 1500);
             legalGuess = false;
         }
-        else if (this.hintsMustBeUsed) {
+        else if (this.settings.hintsMustBeUsed) {
             const [greenMissing, yellowMissing] = this.usedAllHints(this.input);
             if (greenMissing.length > 0 || yellowMissing.length > 0) {
                 // build alert message
@@ -219,9 +240,9 @@ class Game extends Component {
         const guess = guessObj.guess;
         // console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace, 'this.answer', this.answer);
         for (let n=0; n < this.answer.length; n++) {
-            const chval = (n < guess.length ? guess[n] : String.fromCharCode(160));
+            const chval = (n < guess.length ? guess[n] : nbsp);
             let bgcolor = 'white';
-            if (this.markGuessChars) {
+            if (this.settings.markGuessChars) {
                 if (guessObj.exact.includes(n)) {
                     bgcolor = 'lightgreen';
                     this.greenString += ` ${chval}`;
@@ -243,6 +264,7 @@ class Game extends Component {
                     display: 'inline-block',
                     marginLeft: '5px',
                     marginBottom: '5px',
+                    marginTop: '5px',
                     textAlign: 'center',
                     // fontSize: '16px',
                     key: this.guessList.length,
@@ -252,7 +274,7 @@ class Game extends Component {
             );
         };
         // harder option to just show total exact and wrongplace
-        if (!this.markGuessChars && submitted) {
+        if (!this.state.settings.markGuessChars && submitted) {
             const exlen = guessObj.exact.length;
             const wplen = guessObj.wrongplace.length;
             for (let n=0; n<2; n++) {
@@ -337,7 +359,29 @@ class Game extends Component {
         return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.yellowString.includes(c) &&
                                                         !this.greenString.includes(c) &&
                                                         !this.greyString.includes(c));
-                
+    }
+
+    genSwitchSetting(settingName, labeltext) {
+        return (
+            <Fragment>
+              <label>
+                {`${labeltext}${nbsp}${nbsp}`} 
+                <Switch
+                  className="react-switch"
+                  onChange={(checked) => {
+                      this.settings[settingName] = checked;
+                      this.setState({settings: this.settings});
+                  }}
+                  id={settingName}
+                  checked={this.state.settings[settingName]}
+                  height={15}
+                  width={30}
+                />
+              </label>
+              <br/>
+            </Fragment>
+        );
+    
     }
     
     render() {
@@ -361,18 +405,85 @@ class Game extends Component {
         }
         const untriedLine = (this.state.guessList.length === 0 ? ' ' :
                              `Untried: ${this.getUntriedChars().join(' ')}`);
+
+        const settingsPage= () => {
+            return (
+                // first is button to return to game
+                <div>
+                  <button
+                    style = {{
+                        marginRight: '10px',
+                        marginBottom: '5px',
+                    }}
+                    onClick = {() => {
+                        this.setState({useGamePage:true});
+                        this.startNewGame();
+                    }}
+
+                  >
+                    {String.fromCharCode(0x2b05)}
+                  </button>
+                  Settings
+                  <br/>
+                  <label>Word Length (longer=harder)
+                      <NumericInput
+                        id="wordlen"
+                        min={5}
+                        max={8}
+                        value={this.state.settings.wordlen || ""} 
+                        onChange={(val) => {
+                            this.settings.wordlen = val;
+                            this.setState({settings: this.settings});
+                        }}
+                        style = {{
+                            border: '1px solid black',
+                            input: {
+                                marginLeft: '5px',
+                                height: '20px',
+                                width: '50px',
+                            }
+                        }}
+                      >
+                      </NumericInput>
+                    </label>
+                    <br/>
+                  {this.genSwitchSetting('guessMustBeWord', 'Guess must be in wordlist? (true=harder)') }
+                  {this.genSwitchSetting('markGuessChars', 'Mark Guess Chars? (true=easier)') }
+                  {this.genSwitchSetting('hintsMustBeUsed', 'Hints Must Be Used in Later Bids? (true=harder)') }
+                </div>
+            );
+        }
+
+        const gamePage = () => {
+            return (
+                <Fragment>
+                  <div>
+                    <button
+                      style = {{
+                          marginRight: '10px',
+                      }}
+                      onClick = {() => this.setState({useGamePage:false})}
+                    >
+                      {String.fromCharCode(0x2699)}
+                    </button>
+                    WordGuess Game
+                  </div>
+                <div
+                  onKeyDown = {this.onRealKeyDown.bind(this)}
+                  tabIndex = {-1}
+                  ref = {div => this.focusRef = div}
+                >
+                  {guessLines}
+                  {this.getGameOverLine()}
+                </div>
+                {untriedLine}
+                {this.getVirtKeyboard()}
+                </Fragment>
+            );
+        }
+
         return (
-            <Fragment>
-            <div
-              onKeyDown = {this.onRealKeyDown.bind(this)}
-              tabIndex = '0'
-            >
-              {guessLines}
-              {this.getGameOverLine()}
-            </div>
-              {untriedLine}
-              {this.getVirtKeyboard()}
-            </Fragment>
+            this.state.useGamePage ? gamePage() : settingsPage()
         );
     }
 }
