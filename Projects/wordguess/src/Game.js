@@ -6,6 +6,85 @@ import Switch from "react-switch";
 import "./index.css";
 
 const nbsp = String.fromCharCode(160);
+
+// abstract class for the different ways of handling hints
+class HintHandler {
+    constructor(gameObj) {
+        if (new.target === HintHandler) {
+            throw new TypeError('cannot instantiate HintHandler class');
+        }
+        // some methods must be overridden
+        if (this.computeGuessCharColor === undefined) {
+            throw new TypeError(`class ${this.constructor.name} did not implement computeGuessCharColor method`);
+        }
+        if (this.formatGuessTotals === undefined) {
+            throw new TypeError(`class ${this.constructor.name} did not implement formatGuessTotals method`);
+        }
+        this.gameObj = gameObj;
+    }
+}
+
+// class for handling hints by marking chars
+class HintHandlerMarkChars extends HintHandler{
+    computeGuessCharColor(guessObj, pos, chval, submitted) {
+        let bgcolor = 'white'; // default
+        if (guessObj.exact.includes(pos)) {
+            bgcolor = 'lightgreen';
+            this.gameObj.greenString += ` ${chval}`;
+        }
+        else if (guessObj.wrongplace.includes(pos)) {
+            bgcolor = 'yellow';
+            this.gameObj.yellowString += ` ${chval}`;
+        }
+        else if (submitted) {
+            this.gameObj.greyString += ` ${chval}`;
+            this.gameObj.notInPool.add(chval);
+        }
+        return bgcolor;
+    }
+
+    // in this handler, we don't show anything at end of line
+    formatGuessTotals(guessObj, guessLine) {
+    }
+}
+
+// class for handling hints by just showing totals (harder)
+class HintHandlerShowTotals extends HintHandler{
+    // when we are not marking guess chars, we only know notInPool
+    // which is the special case when no green or yellow
+    computeGuessCharColor(guessObj, pos, chval, submitted) {
+        const bgcolor = 'white';
+        if (submitted && (guessObj.exact.length + guessObj.wrongplace.length === 0)) {
+            this.notInPool.add(chval);
+        }
+        return bgcolor;
+    }
+
+    // in this handler we do show totals at end of guess line
+    formatGuessTotals(guessObj, guessLine) {
+        const exlen = guessObj.exact.length;
+        const wplen = guessObj.wrongplace.length;
+        for (let n=0; n<2; n++) {
+            const chval = (n===0 ? exlen : wplen);
+            guessLine.push(
+                <div style={{
+                    borderRadius: '50%',
+                    height: '20px',
+                    width: '20px',
+                    display: 'inline-block',
+                    marginLeft: '10px',
+                    marginBottom: '5px',
+                    textAlign: 'center',
+                    backgroundColor: (n ? 'yellow' : 'lightgreen'),
+                }}>
+                  {chval}
+                </div>
+            );
+        }
+    }
+    
+}
+
 class Game extends Component {
     constructor() {
         super();
@@ -47,13 +126,13 @@ class Game extends Component {
     
     async componentDidMount() {
         this.startNewGame();
-        if (this.focusRef.current) {
+        if (this.focusRef && this.focusRef.current) {
             this.focusRef.focus();
         }
     }
     
     componentDidUpdate() {
-        if (this.focusRef.current) {
+        if (this.focusRef && this.focusRef.current) {
             this.focusRef.focus();
         }
     }
@@ -62,6 +141,7 @@ class Game extends Component {
         this.gameOver = false;
         this.guessList = [];
         this.input = '';
+        this.hintHandler = (this.settings.markGuessChars ? new HintHandlerMarkChars(this) : new HintHandlerShowTotals(this));
         await this.buildWordList(this.settings.wordlen);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         console.log('this.answer =', this.answer);
@@ -241,20 +321,7 @@ class Game extends Component {
         // console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace, 'this.answer', this.answer);
         for (let n=0; n < this.answer.length; n++) {
             const chval = (n < guess.length ? guess[n] : nbsp);
-            let bgcolor = 'white';
-            if (this.settings.markGuessChars) {
-                if (guessObj.exact.includes(n)) {
-                    bgcolor = 'lightgreen';
-                    this.greenString += ` ${chval}`;
-                }
-                else if (guessObj.wrongplace.includes(n)) {
-                    bgcolor = 'yellow';
-                    this.yellowString += ` ${chval}`;
-                }
-                else if (submitted) {
-                    this.greyString += ` ${chval}`;
-                }
-            }
+            const bgcolor = this.hintHandler.computeGuessCharColor(guessObj, n, chval, submitted);
             guessLine.push(
                 <div style={{
                     border: '1px solid black',
@@ -273,27 +340,10 @@ class Game extends Component {
                 </div>
             );
         };
-        // harder option to just show total exact and wrongplace
-        if (!this.state.settings.markGuessChars && submitted) {
-            const exlen = guessObj.exact.length;
-            const wplen = guessObj.wrongplace.length;
-            for (let n=0; n<2; n++) {
-                const chval = (n===0 ? exlen : wplen);
-                guessLine.push(
-                    <div style={{
-                        borderRadius: '50%',
-                        height: '20px',
-                        width: '20px',
-                        display: 'inline-block',
-                        marginLeft: '10px',
-                        marginBottom: '5px',
-                        textAlign: 'center',
-                        backgroundColor: (n ? 'yellow' : 'lightgreen'),
-                    }}>
-                      {chval}
-                    </div>
-                );
-            }
+        
+        // conditionally  show total exact and wrongplace
+        if (submitted) {
+            this.hintHandler.formatGuessTotals(guessObj, guessLine);
         }
         return guessLine;
     }
@@ -355,31 +405,32 @@ class Game extends Component {
         );
     }
 
-    getUntriedChars() {
-        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.yellowString.includes(c) &&
-                                                        !this.greenString.includes(c) &&
-                                                        !this.greyString.includes(c));
+    getPoolChars() {
+        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.notInPool.has(c));
     }
 
+    // <div align='right' style={{display:'inline-block', textAlign:'right'}}>
     genSwitchSetting(settingName, labeltext) {
         return (
-            <Fragment>
-              <label>
-                {`${labeltext}${nbsp}${nbsp}`} 
-                <Switch
-                  className="react-switch"
-                  onChange={(checked) => {
-                      this.settings[settingName] = checked;
-                      this.setState({settings: this.settings});
-                  }}
-                  id={settingName}
-                  checked={this.state.settings[settingName]}
-                  height={15}
-                  width={30}
-                />
+            <div>
+              <label style={{float: 'left'}}>
+                {`${labeltext}${nbsp}${nbsp}`}
               </label>
+              <div style={{float: 'right'}}>
+                  <Switch
+                    className="react-switch"
+                    onChange={(checked) => {
+                        this.settings[settingName] = checked;
+                        this.setState({settings: this.settings});
+                    }}
+                    id={settingName}
+                    checked={this.state.settings[settingName]}
+                    height={15}
+                    width={30}
+                  />
+              </div>
               <br/>
-            </Fragment>
+            </div>
         );
     
     }
@@ -389,6 +440,7 @@ class Game extends Component {
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
+        this.notInPool = new Set();
         let guessLines = [];
         this.state.guessList.forEach( (guessObj) => {
             guessLines.push(this.formatGuess(guessObj, true));
@@ -403,8 +455,8 @@ class Game extends Component {
             };
             guessLines.push(this.formatGuess(newObj, false));
         }
-        const untriedLine = (this.state.guessList.length === 0 ? ' ' :
-                             `Untried: ${this.getUntriedChars().join(' ')}`);
+        const poolLine = (this.state.guessList.length === 0 ? ' ' :
+                             `Pool: ${this.getPoolChars().join(' ')}`);
 
         const settingsPage= () => {
             return (
@@ -446,10 +498,12 @@ class Game extends Component {
                       >
                       </NumericInput>
                     </label>
-                    <br/>
-                  {this.genSwitchSetting('guessMustBeWord', 'Guess must be in wordlist? (true=harder)') }
-                  {this.genSwitchSetting('markGuessChars', 'Mark Guess Chars? (true=easier)') }
-                  {this.genSwitchSetting('hintsMustBeUsed', 'Hints Must Be Used in Later Bids? (true=harder)') }
+                  <br/>
+                  <div style={{width:'300px', display:'inline-block'}}>
+                    {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
+                    {this.genSwitchSetting('markGuessChars', 'Mark Guess Chars? (easier)') }
+                    {this.genSwitchSetting('hintsMustBeUsed', 'Hints Must Be Used? (harder)') }
+                  </div>
                 </div>
             );
         }
@@ -476,7 +530,7 @@ class Game extends Component {
                   {guessLines}
                   {this.getGameOverLine()}
                 </div>
-                {untriedLine}
+                {poolLine}
                 {this.getVirtKeyboard()}
                 </Fragment>
             );
