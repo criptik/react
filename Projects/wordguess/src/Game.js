@@ -138,7 +138,6 @@ class Game extends Component {
     }
 
     async startNewGame() {
-        this.gameOver = false;
         this.guessList = [];
         this.input = '';
         this.hintHandler = (this.settings.markGuessChars ? new HintHandlerMarkChars(this) : new HintHandlerShowTotals(this));
@@ -148,6 +147,8 @@ class Game extends Component {
         this.setState({
             input: this.input,
             guessList: this.guessList,
+            gameOver: false,
+            message: null,
         });
         if (this.focusRef.current) {
             this.focusRef.focus();
@@ -242,17 +243,30 @@ class Game extends Component {
         if (this.input.length !== this.answer.length) return;
         // console.log('usedHintsObj', usedHintsObj);
         if (this.settings.guessMustBeWord && !this.wordList.includes(this.input)) {
-            await this.tempAlert('Guess must be a Legal Scrabble Word', 1500);
+            // await this.tempAlert('Guess must be a Legal Scrabble Word', 1500);
+            this.setMessage('Guess must be a Legal Scrabble Word');
             legalGuess = false;
         }
         else if (this.settings.hintsMustBeUsed) {
             const [greenMissing, yellowMissing] = this.usedAllHints(this.input);
             if (greenMissing.length > 0 || yellowMissing.length > 0) {
                 // build alert message
-                const missingGreenHtml = `<span style="background-color:lightgreen;">${greenMissing.join(',')}</span>`;
-                const missingYellowHtml = `<span style="background-color:yellow;">${yellowMissing.join(',')}</span>`;
-                await this.tempAlert(`Guess must use Hints: <br/> ${missingGreenHtml} ${missingYellowHtml}`,
-                                     3000, 'rgb(230,230,230)');
+                const missingGreenComp = (
+                      <span style={{backgroundColor:'lightgreen'}}>
+                        {' ' + greenMissing.join(',')}
+                      </span>);
+                const missingYellowComp = (
+                      <span style={{backgroundColor:'yellow'}}>
+                        {' '+ yellowMissing.join(',')}
+                      </span>);
+                const alertMsg = (
+                    <div>
+                    {'Guess must use Hints: '}
+                    {missingGreenComp}
+                    {missingYellowComp}
+                    </div>
+                );
+                this.setMessage(alertMsg, 'rgb(230,230,230)');
                 legalGuess = false;
             }
         }
@@ -265,11 +279,18 @@ class Game extends Component {
                 exact,
                 wrongplace,
             });
-            if (exact.length === this.answer.length) this.gameOver = true;
+            if (exact.length === this.answer.length) {
+                this.setState(
+                    {gameOver:true,
+                     message: this.buildGameOverMessage(),
+                    });
+            }
         }
         // clean up input for the next time thru
-        this.input = '';
-        if (this.useVirtKeyboard) this.keyboard.clearInput();
+        if (legalGuess) {
+            this.input = '';
+            if (this.useVirtKeyboard) this.keyboard.clearInput();
+        }
         this.setState({
             input: this.input,
             guessList: this.guessList,
@@ -284,7 +305,10 @@ class Game extends Component {
     }
 
     onRealKeyDown(event) {
-        if (this.gameOver) return;
+        if (this.state.gameOver) return;
+        if (this.state.message != null) {
+            this.setState({message: null});
+        }
         let key = event.nativeEvent.key;
         // console.log("Real Key Down", key);
         if (key === 'Enter') {
@@ -387,12 +411,10 @@ class Game extends Component {
         );
     }
 
-    getGameOverLine() { 
-        if (!this.gameOver) return (<Fragment></Fragment>);
+    buildGameOverMessage() {
         const numGuesses = this.state.guessList.length;
-        return (
-            <div>
-              {`Match after ${numGuesses} ${numGuesses === 1 ? 'guess' : 'guesses'}!`}
+        const html = `Match after ${numGuesses} ${numGuesses === 1 ? 'guess' : 'guesses'}!`;
+        const againButton = (
               <button
                 onClick = {this.startNewGame.bind(this)}
                 style = {{
@@ -401,8 +423,37 @@ class Game extends Component {
               >
                 Again
               </button>
+        );
+
+        return {html: html,
+                bgcolor: 'white',
+                msgButton: againButton,
+               };
+    }
+    
+    setMessage(html, bgcolor='pink', msgButton = null) {
+        const msgObj = {html, bgcolor, msgButton};
+        // console.log('setMessage', msgObj);
+        this.setState({
+            message: msgObj,
+        });
+    }
+    
+    genMessageLine() {
+        // console.log('state.message', this.state.message);
+        if (this.state.message === null) return (<Fragment></Fragment>);
+        const buttonJsx = (this.state.message.msgButton === null ?
+                           (<Fragment></Fragment>) :
+                           this.state.message.msgButton);
+        return(
+            <div style={{backgroundColor : this.state.message.bgcolor}} >
+               {<>{this.state.message.html}</>} 
+              {buttonJsx}
             </div>
         );
+
+                         
+            
     }
 
     getPoolChars() {
@@ -436,7 +487,7 @@ class Game extends Component {
     }
     
     render() {
-        console.log('render');
+        console.log('render', this.state.message);
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
@@ -447,7 +498,7 @@ class Game extends Component {
             guessLines.push(<br/>);
         });
         // if game not over, push inputty line as well
-        if (!this.gameOver) {
+        if (!this.state.gameOver) {
             const newObj = {
                 guess: this.state.input,
                 exact: [],
@@ -528,7 +579,7 @@ class Game extends Component {
                   ref = {div => this.focusRef = div}
                 >
                   {guessLines}
-                  {this.getGameOverLine()}
+                  {this.genMessageLine()}
                 </div>
                 {poolLine}
                 {this.getVirtKeyboard()}
