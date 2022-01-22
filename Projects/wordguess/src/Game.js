@@ -3,6 +3,7 @@ import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 import NumericInput from "react-numeric-input";
 import Switch from "react-switch";
+import * as _ from 'underscore';
 import "./index.css";
 
 const nbsp = String.fromCharCode(160);
@@ -46,6 +47,85 @@ class HintHandlerMarkChars extends HintHandler{
     // in this handler, we don't show anything at end of line
     formatGuessTotals(guessObj, guessLine) {
     }
+
+    checkUseAllHints(guess) {
+        // first we check for green missing and yellow missing if any
+        // short circuit in certain situations
+        let greenMissing = [];
+        let yellowMissing = [];
+        const guessAry = [...guess];
+        // we will look in the previous input submission record (if any)
+        const prevGuessObj = this.gameObj.mostRecentGuess();
+        // console.log('prevGuess', prevGuessObj);
+        // first check previous exacts
+        prevGuessObj.exact.forEach( pos => {
+            const chr = prevGuessObj.guess[pos];
+            if (guessAry[pos] === chr) {
+                // clear so we don't reuse
+                guessAry[pos] = null;
+            }
+            else {
+                greenMissing.push(chr);
+            }
+        });
+        // then check the wrongPlace chars exist somewhere
+        prevGuessObj.wrongplace.forEach( pos => {
+            const chr = prevGuessObj.guess[pos];
+            const guessIdx = guessAry.indexOf(chr);
+            if (guessIdx >= 0) {
+                // clear so we don't reuse
+                guessAry[guessIdx] = null;
+            }
+            else {
+                yellowMissing.push(chr);
+            }
+        });
+
+        // build local notInPool from all previous guesses
+        let localNotInPool = new Set();
+        this.gameObj.guessList.forEach((guessObj) => {
+            let used = [...guessObj.exact, ...guessObj.wrongplace];
+            let unused = _.range(guessObj.guess.length).filter( pos => !used.includes(pos));
+            let unusedChars = unused.map(pos => guessObj.guess[pos]);
+            unusedChars.forEach(ch => localNotInPool.add(ch));
+        });
+        let localNotInPoolArray = Array.from(localNotInPool.values());
+        console.log(`unusedChars: ${localNotInPoolArray}`);
+        let notInPoolUsed = guessAry.filter( ch => localNotInPoolArray.includes(ch));
+        
+        return (greenMissing.length === 0 && yellowMissing.length === 0 && notInPoolUsed.length === 0 ? null :
+                this.formatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed));
+    }
+    
+    formatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed) {
+        // build alert message
+        const missingGreenComp = (
+            <span style={{backgroundColor:'lightgreen'}}>
+              {' ' + greenMissing.join(',')}
+            </span>);
+        const missingYellowComp = (
+            <span style={{backgroundColor:'yellow'}}>
+              {' '+ yellowMissing.join(',')}
+            </span>);
+
+        const missingHintsPart = (greenMissing.length === 0 && yellowMissing.length === 0 ? ' ' :
+                                  (<div>
+                                     {'Guess must use Hints: '}
+                                     {missingGreenComp}
+                                     {missingYellowComp}
+                                   </div>)
+                                 );
+                              
+        const notUsePart = (notInPoolUsed.length === 0 ? ' ' : ` cannot use ${notInPoolUsed.join(' ')}`);
+        
+        const hintsMsg = (
+            <div>
+              {missingHintsPart}
+              {notUsePart}
+            </div>
+        );
+        return hintsMsg;
+    }
 }
 
 // class for handling hints by just showing totals (harder)
@@ -55,7 +135,7 @@ class HintHandlerShowTotals extends HintHandler{
     computeGuessCharColor(guessObj, pos, chval, submitted) {
         const bgcolor = 'white';
         if (submitted && (guessObj.exact.length + guessObj.wrongplace.length === 0)) {
-            this.notInPool.add(chval);
+            this.gameObj.notInPool.add(chval);
         }
         return bgcolor;
     }
@@ -82,7 +162,36 @@ class HintHandlerShowTotals extends HintHandler{
             );
         }
     }
-    
+
+    checkUseAllHints(guess) {
+        // for each previous guess, see if we have at least as many total
+        // green+yellow chars matching as that guess had.  Complain about the first one
+        // that does not hold true.
+        const notEnoughs = [];
+        const notUses = [];
+        for (let gidx = 0; gidx < this.gameObj.guessList.length; gidx++){
+            const oldGuessObj = this.gameObj.guessList[gidx];
+            const [exact, wrongplace] = this.gameObj.doCompare(guess, oldGuessObj.guess);
+            const newLen = exact.length + wrongplace.length;
+            const oldLen = oldGuessObj.exact.length + oldGuessObj.wrongplace.length;
+            console.log(`old: ex:${oldGuessObj.exact.length} wp:${oldGuessObj.wrongplace.length}, new:  ex:${exact.length} wp:${wrongplace.length}, newlen=${newLen} oldlen=${oldLen}`);
+            if (newLen < oldLen) {
+                notEnoughs.push(oldGuessObj.guess);
+            }
+            else if (oldLen === 0 && newLen !== 0) {
+                notUses.push(oldGuessObj.guess);
+            }
+        }
+        if (notEnoughs.length === 0 && notUses.length === 0) return null;
+        let msg = '';
+        if (notEnoughs.length > 0) {
+            msg += `not enough chars from ${notEnoughs.join(', ')}. `;
+        }
+        if (notUses.length > 0) {
+            msg += `should not use chars from ${notUses.join(', ')}. `;
+        }
+        return msg;
+    }
 }
 
 class Game extends Component {
@@ -91,7 +200,7 @@ class Game extends Component {
         this.settings = {
             wordlen: 5,
             guessMustBeWord : true,
-            markGuessChars : true,            
+            noMarkGuessChars : false,            
             hintsMustBeUsed : true,
         };
         this.state = {
@@ -99,8 +208,9 @@ class Game extends Component {
             input: "",
             letterMap: {},
             guessList: [],
-            useGamePage : false,
+            useGamePage : true,
             settings: this.settings,
+            message: null,
         };
         this.useVirtKeyboard = false;
         this.answer = '';
@@ -133,6 +243,7 @@ class Game extends Component {
     
     componentDidUpdate() {
         if (this.focusRef && this.focusRef.current) {
+            console.log('did update', this.focusref);
             this.focusRef.focus();
         }
     }
@@ -140,7 +251,7 @@ class Game extends Component {
     async startNewGame() {
         this.guessList = [];
         this.input = '';
-        this.hintHandler = (this.settings.markGuessChars ? new HintHandlerMarkChars(this) : new HintHandlerShowTotals(this));
+        this.hintHandler = (this.settings.noMarkGuessChars ? new HintHandlerShowTotals(this) : new HintHandlerMarkChars(this));
         await this.buildWordList(this.settings.wordlen);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         console.log('this.answer =', this.answer);
@@ -200,43 +311,6 @@ class Game extends Component {
         return (this.guessList.length > 0 ? this.guessList.slice(-1)[0] : null);
     }
     
-    // returns two arrays of green missing and yellow missing if any
-    usedAllHints(guess) {
-        // short circuit in certain situations
-        let greenCharsMissing = [];
-        let yellowCharsMissing = [];
-        if (this.settings.hintsMustBeUsed && this.guessList.length > 0) {
-            const guessAry = [...guess];
-            // we will look in the previous input submission record (if any)
-            const prevGuessObj = this.mostRecentGuess();
-            // console.log('prevGuess', prevGuessObj);
-            // first check previous exacts
-            prevGuessObj.exact.forEach( pos => {
-                const chr = prevGuessObj.guess[pos];
-                if (guessAry[pos] === chr) {
-                    // clear so we don't reuse
-                    guessAry[pos] = null;
-                }
-                else {
-                    greenCharsMissing.push(chr);
-                }
-            });
-            // then check the wrongPlace chars exist somewhere
-            prevGuessObj.wrongplace.forEach( pos => {
-                const chr = prevGuessObj.guess[pos];
-                const guessIdx = guessAry.indexOf(chr);
-                if (guessIdx >= 0) {
-                    // clear so we don't reuse
-                    guessAry[guessIdx] = null;
-                }
-                else {
-                    yellowCharsMissing.push(chr);
-                }
-            });
-        }
-        return [greenCharsMissing, yellowCharsMissing];
-    }
-
     
     async doInputSubmit() {
         let legalGuess = true;  // assume this
@@ -247,26 +321,10 @@ class Game extends Component {
             this.setMessage('Guess must be a Legal Scrabble Word');
             legalGuess = false;
         }
-        else if (this.settings.hintsMustBeUsed) {
-            const [greenMissing, yellowMissing] = this.usedAllHints(this.input);
-            if (greenMissing.length > 0 || yellowMissing.length > 0) {
-                // build alert message
-                const missingGreenComp = (
-                      <span style={{backgroundColor:'lightgreen'}}>
-                        {' ' + greenMissing.join(',')}
-                      </span>);
-                const missingYellowComp = (
-                      <span style={{backgroundColor:'yellow'}}>
-                        {' '+ yellowMissing.join(',')}
-                      </span>);
-                const alertMsg = (
-                    <div>
-                    {'Guess must use Hints: '}
-                    {missingGreenComp}
-                    {missingYellowComp}
-                    </div>
-                );
-                this.setMessage(alertMsg, 'rgb(230,230,230)');
+        else if (this.settings.hintsMustBeUsed && this.guessList.length > 0) {
+            const messageJsx = this.hintHandler.checkUseAllHints(this.input);
+            if (messageJsx) {
+                this.setMessage(messageJsx, 'rgb(230,230,230)');
                 legalGuess = false;
             }
         }
@@ -460,34 +518,84 @@ class Game extends Component {
         return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.notInPool.has(c));
     }
 
+    getSwitch(settingName) {
+        if (true) return (
+            <input
+              type="checkbox"
+              checked={this.state.settings[settingName]}
+              onChange={(checked) => {
+                  this.settings[settingName] = checked;
+                  this.setState({settings: this.settings});
+              }}
+              id={settingName}
+              height={15}
+              width={30}
+              style={{float: 'right'}}
+            />
+        )
+        else return (
+            <Switch
+              className="react-switch"
+              onChange={(checked) => {
+                  this.settings[settingName] = checked;
+                  this.setState({settings: this.settings});
+              }}
+              id={settingName}
+              checked={this.state.settings[settingName]}
+              height={15}
+              width={30}
+              style={{float: 'right'}}
+            />
+        );
+    }
+    
     // <div align='right' style={{display:'inline-block', textAlign:'right'}}>
     genSwitchSetting(settingName, labeltext) {
         return (
-            <div>
-              <label style={{float: 'left'}}>
-                {`${labeltext}${nbsp}${nbsp}`}
-              </label>
-              <div style={{float: 'right'}}>
-                  <Switch
-                    className="react-switch"
-                    onChange={(checked) => {
-                        this.settings[settingName] = checked;
-                        this.setState({settings: this.settings});
-                    }}
-                    id={settingName}
-                    checked={this.state.settings[settingName]}
-                    height={15}
-                    width={30}
-                  />
+            <div style={{float: 'left', width:'300px'}}>
+            <span style={{fontSize:'16px'}} >{`${labeltext}${nbsp}${nbsp}`} </span>
+              <div style={{float: 'right'}} >
+                {this.getSwitch(settingName)}
               </div>
               <br/>
             </div>
         );
     
     }
+
+    genNumericInputSetting(settingName, labeltext) {
+        return (
+            <div style={{float: 'left', width:'300px'}}>
+              <span style={{fontSize:'16px'}} >
+                {labeltext}
+              </span>
+              <div style={{float:'right'}}>
+                <NumericInput
+                  id={settingName}
+                  min={5}
+                  max={8}
+                  value={this.state.settings[settingName] || ""} 
+                  onChange={(val) => {
+                      this.settings[settingName] = val;
+                      this.setState({settings: this.settings});
+                  }}
+                  style = {{
+                      border: '1px solid black',
+                      input: {
+                          marginLeft: '5px',
+                          height: '18px',
+                          width: '40px',
+                      },
+                  }}
+                >
+                </NumericInput>
+              </div>
+            </div>
+        );
+    }
     
     render() {
-        console.log('render', this.state.message);
+        console.log('render', this.state.message, this.focusRef);
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
@@ -528,31 +636,11 @@ class Game extends Component {
                   </button>
                   Settings
                   <br/>
-                  <label>Word Length (longer=harder)
-                      <NumericInput
-                        id="wordlen"
-                        min={5}
-                        max={8}
-                        value={this.state.settings.wordlen || ""} 
-                        onChange={(val) => {
-                            this.settings.wordlen = val;
-                            this.setState({settings: this.settings});
-                        }}
-                        style = {{
-                            border: '1px solid black',
-                            input: {
-                                marginLeft: '5px',
-                                height: '20px',
-                                width: '50px',
-                            }
-                        }}
-                      >
-                      </NumericInput>
-                    </label>
-                  <br/>
                   <div style={{width:'300px', display:'inline-block'}}>
+                    {this.genNumericInputSetting('wordlen', 'Word Length? (longer=harder)') }
+                    <br/>
                     {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
-                    {this.genSwitchSetting('markGuessChars', 'Mark Guess Chars? (easier)') }
+                    {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
                     {this.genSwitchSetting('hintsMustBeUsed', 'Hints Must Be Used? (harder)') }
                   </div>
                 </div>
@@ -575,7 +663,7 @@ class Game extends Component {
                   </div>
                 <div
                   onKeyDown = {this.onRealKeyDown.bind(this)}
-                  tabIndex = {-1}
+                  tabIndex = {0}
                   ref = {div => this.focusRef = div}
                 >
                   {guessLines}
