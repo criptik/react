@@ -7,6 +7,7 @@ import * as _ from 'underscore';
 import "./index.css";
 
 const nbsp = String.fromCharCode(160);
+const [EXACT, WRONG, NOTUSE] = [1,2,3];
 
 // abstract class for the different ways of handling hints
 class HintHandler {
@@ -23,6 +24,21 @@ class HintHandler {
         }
         this.gameObj = gameObj;
     }
+
+    arrayEquals(a, b) {
+        if (a.length !== b.length) return false;
+        a = a.sort();
+        b = b.sort();
+        return a.every((val, index) => val === b[index]);
+    }
+
+    buildPosMap(len, exact, wrongplace) {
+        let ary = new Array(len).fill(NOTUSE);
+        exact.forEach(pos => ary[pos] = EXACT);
+        wrongplace.forEach(pos => ary[pos] = WRONG);
+        return ary;
+    }
+
 }
 
 // class for handling hints by marking chars
@@ -48,7 +64,47 @@ class HintHandlerMarkChars extends HintHandler{
     formatGuessTotals(guessObj, guessLine) {
     }
 
-    checkUseAllHints(guess) {
+    genErrMsg(newCode, oldCode, pos, newGuess, oldGuess) {
+        const oldChr = oldGuess[pos];
+        if (oldCode === EXACT) return `chr ${pos+1} must be ${oldChr}, `;
+        if (newCode === EXACT)  return `chr ${pos+1} must not be ${oldChr}, `;
+        if (oldCode === NOTUSE && newCode === WRONG) {
+            return `must not use ${oldChr}, `;
+        }
+        if (newCode === NOTUSE && oldCode === WRONG) {
+            return `must contain ${oldChr}, `;
+        }
+        return `chr ${pos+1} ${newCode} !== ${oldCode}, `;        
+    }
+    
+    checkUseAllHints(newGuess) {
+        let retval = true;
+        let errMsg = '';
+        const len = newGuess.length;
+        // for each previous guess, going backwards, see if our guess would produce a similar result
+        for (let gidx = this.gameObj.guessList.length-1; gidx >= 0; gidx--) {
+            const guessObj = this.gameObj.guessList[gidx];
+            const oldPosMap = this.buildPosMap(len, guessObj.exact, guessObj.wrongplace);
+            // get compare info for that guess vs. our new guess
+            let [newExact, newWrongPlace] = this.gameObj.doCompare(guessObj.guess, newGuess);
+            const newPosMap = this.buildPosMap(len, newExact, newWrongPlace);
+            console.log(`${guessObj.guess}, ${newPosMap}, ${oldPosMap}`);
+            for (let pos=0; pos<len; pos++) {
+                const newCode = newPosMap[pos];
+                const oldCode = oldPosMap[pos];
+                if (newCode !== oldCode) {
+                    // errMsg += `chr ${pos+1} ${newCode} !== ${oldCode}, `;
+                    errMsg += this.genErrMsg(newCode, oldCode, pos, newGuess, guessObj.guess);
+                    retval = false;
+                }
+            }
+            if (retval === false) return `${errMsg} see ${guessObj.guess}`;
+        }
+        return null;
+    }
+
+    // the following 2 routines should eventually go away
+    oldCheckUseAllHints(guess) {
         // first we check for green missing and yellow missing if any
         // short circuit in certain situations
         let greenMissing = [];
@@ -91,13 +147,14 @@ class HintHandlerMarkChars extends HintHandler{
         });
         let localNotInPoolArray = Array.from(localNotInPool.values());
         console.log(`unusedChars: ${localNotInPoolArray}`);
-        let notInPoolUsed = guessAry.filter( ch => localNotInPoolArray.includes(ch));
+        // let notInPoolUsed = guessAry.filter( ch => localNotInPoolArray.includes(ch));
+        let notInPoolUsed = guessAry.filter( ch => Array.from(this.gameObj.notInPool.values()).includes(ch));
         
         return (greenMissing.length === 0 && yellowMissing.length === 0 && notInPoolUsed.length === 0 ? null :
-                this.formatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed));
+                this.oldFormatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed));
     }
     
-    formatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed) {
+    oldFormatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed) {
         // build alert message
         const missingGreenComp = (
             <span style={{backgroundColor:'lightgreen'}}>
@@ -163,7 +220,7 @@ class HintHandlerShowTotals extends HintHandler{
         }
     }
 
-    checkUseAllHints(guess) {
+    oldCheckUseAllHints(guess) {
         // for each previous guess, see if we have at least as many total
         // green+yellow chars matching as that guess had.  Complain about the first one
         // that does not hold true.
@@ -251,9 +308,11 @@ class Game extends Component {
     async startNewGame() {
         this.guessList = [];
         this.input = '';
+        this.notInPool = new Set();
         this.hintHandler = (this.settings.noMarkGuessChars ? new HintHandlerShowTotals(this) : new HintHandlerMarkChars(this));
         await this.buildWordList(this.settings.wordlen);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
+        this.answer = 'FORDS';
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
@@ -278,6 +337,11 @@ class Game extends Component {
         this.wordList = await text.split('\n');
         this.wordList = await this.wordList.map(word => word.toUpperCase());
         console.log(`wordlist for len ${wordlen} built`);
+    }
+
+    getNotUsedPosAry(exact, wrongplace) {
+        const exandwp = [...exact, ...wrongplace]
+        return _.range(this.answer.length).filter(pos => !exandwp.includes(pos));
     }
     
     doCompare(guess, base) {
@@ -364,10 +428,10 @@ class Game extends Component {
 
     onRealKeyDown(event) {
         if (this.state.gameOver) return;
-        if (this.state.message != null) {
+        let key = event.nativeEvent.key;
+        if (key === 'Backspace' && this.state.message != null) {
             this.setState({message: null});
         }
-        let key = event.nativeEvent.key;
         // console.log("Real Key Down", key);
         if (key === 'Enter') {
             this.doInputSubmit();
@@ -523,8 +587,8 @@ class Game extends Component {
             <input
               type="checkbox"
               checked={this.state.settings[settingName]}
-              onChange={(checked) => {
-                  this.settings[settingName] = checked;
+              onChange={() => {
+                  this.settings[settingName] = !this.settings[settingName];
                   this.setState({settings: this.settings});
               }}
               id={settingName}
@@ -565,7 +629,7 @@ class Game extends Component {
 
     genNumericInputSetting(settingName, labeltext) {
         return (
-            <div style={{float: 'left', width:'300px'}}>
+            <div style={{float: 'left', width:'320px'}}>
               <span style={{fontSize:'16px'}} >
                 {labeltext}
               </span>
@@ -595,11 +659,11 @@ class Game extends Component {
     }
     
     render() {
-        console.log('render', this.state.message, this.focusRef);
+        // console.log('render', this.state.message, this.focusRef);
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
-        this.notInPool = new Set();
+        // this.notInPool = new Set();
         let guessLines = [];
         this.state.guessList.forEach( (guessObj) => {
             guessLines.push(this.formatGuess(guessObj, true));
