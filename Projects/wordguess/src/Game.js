@@ -39,6 +39,22 @@ class HintHandler {
         return ary;
     }
 
+    //framework for checking all hints
+    checkUseAllHints(newGuess) {
+        const len = newGuess.length;
+        // for each previous guess, going backwards, see if our guess would produce a similar result
+        for (let gidx = this.gameObj.guessList.length-1; gidx >= 0; gidx--) {
+            const guessObj = this.gameObj.guessList[gidx];
+            const oldPosMap = this.buildPosMap(len, guessObj.exact, guessObj.wrongplace);
+            // get compare info for that guess vs. our new guess
+            let [newExact, newWrongPlace] = this.gameObj.doCompare(guessObj.guess, newGuess);
+            const newPosMap = this.buildPosMap(len, newExact, newWrongPlace);
+            const errMsg = this.comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj);
+            if (errMsg.length > 0) return `${errMsg} see ${guessObj.guess}`;
+        }
+        return null; // if we got this far
+    }
+
 }
 
 // class for handling hints by marking chars
@@ -76,113 +92,22 @@ class HintHandlerMarkChars extends HintHandler{
         }
         return `chr ${pos+1} ${newCode} !== ${oldCode}, `;        
     }
-    
-    checkUseAllHints(newGuess) {
-        let retval = true;
-        let errMsg = '';
+
+    comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
+        // console.log(`${guessObj.guess}, ${newPosMap}, ${oldPosMap}`);
         const len = newGuess.length;
-        // for each previous guess, going backwards, see if our guess would produce a similar result
-        for (let gidx = this.gameObj.guessList.length-1; gidx >= 0; gidx--) {
-            const guessObj = this.gameObj.guessList[gidx];
-            const oldPosMap = this.buildPosMap(len, guessObj.exact, guessObj.wrongplace);
-            // get compare info for that guess vs. our new guess
-            let [newExact, newWrongPlace] = this.gameObj.doCompare(guessObj.guess, newGuess);
-            const newPosMap = this.buildPosMap(len, newExact, newWrongPlace);
-            console.log(`${guessObj.guess}, ${newPosMap}, ${oldPosMap}`);
-            for (let pos=0; pos<len; pos++) {
-                const newCode = newPosMap[pos];
-                const oldCode = oldPosMap[pos];
-                if (newCode !== oldCode) {
-                    // errMsg += `chr ${pos+1} ${newCode} !== ${oldCode}, `;
-                    errMsg += this.genErrMsg(newCode, oldCode, pos, newGuess, guessObj.guess);
-                    retval = false;
-                }
+        let errMsg = '';
+        for (let pos=0; pos<len; pos++) {
+            const newCode = newPosMap[pos];
+            const oldCode = oldPosMap[pos];
+            if (newCode !== oldCode) {
+                // errMsg += `chr ${pos+1} ${newCode} !== ${oldCode}, `;
+                errMsg += this.genErrMsg(newCode, oldCode, pos, newGuess, guessObj.guess);
             }
-            if (retval === false) return `${errMsg} see ${guessObj.guess}`;
         }
-        return null;
+        return errMsg;
     }
 
-    // the following 2 routines should eventually go away
-    oldCheckUseAllHints(guess) {
-        // first we check for green missing and yellow missing if any
-        // short circuit in certain situations
-        let greenMissing = [];
-        let yellowMissing = [];
-        const guessAry = [...guess];
-        // we will look in the previous input submission record (if any)
-        const prevGuessObj = this.gameObj.mostRecentGuess();
-        // console.log('prevGuess', prevGuessObj);
-        // first check previous exacts
-        prevGuessObj.exact.forEach( pos => {
-            const chr = prevGuessObj.guess[pos];
-            if (guessAry[pos] === chr) {
-                // clear so we don't reuse
-                guessAry[pos] = null;
-            }
-            else {
-                greenMissing.push(chr);
-            }
-        });
-        // then check the wrongPlace chars exist somewhere
-        prevGuessObj.wrongplace.forEach( pos => {
-            const chr = prevGuessObj.guess[pos];
-            const guessIdx = guessAry.indexOf(chr);
-            if (guessIdx >= 0) {
-                // clear so we don't reuse
-                guessAry[guessIdx] = null;
-            }
-            else {
-                yellowMissing.push(chr);
-            }
-        });
-
-        // build local notInPool from all previous guesses
-        let localNotInPool = new Set();
-        this.gameObj.guessList.forEach((guessObj) => {
-            let used = [...guessObj.exact, ...guessObj.wrongplace];
-            let unused = _.range(guessObj.guess.length).filter( pos => !used.includes(pos));
-            let unusedChars = unused.map(pos => guessObj.guess[pos]);
-            unusedChars.forEach(ch => localNotInPool.add(ch));
-        });
-        let localNotInPoolArray = Array.from(localNotInPool.values());
-        console.log(`unusedChars: ${localNotInPoolArray}`);
-        // let notInPoolUsed = guessAry.filter( ch => localNotInPoolArray.includes(ch));
-        let notInPoolUsed = guessAry.filter( ch => Array.from(this.gameObj.notInPool.values()).includes(ch));
-        
-        return (greenMissing.length === 0 && yellowMissing.length === 0 && notInPoolUsed.length === 0 ? null :
-                this.oldFormatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed));
-    }
-    
-    oldFormatHintsUsedMessage(greenMissing, yellowMissing, notInPoolUsed) {
-        // build alert message
-        const missingGreenComp = (
-            <span style={{backgroundColor:'lightgreen'}}>
-              {' ' + greenMissing.join(',')}
-            </span>);
-        const missingYellowComp = (
-            <span style={{backgroundColor:'yellow'}}>
-              {' '+ yellowMissing.join(',')}
-            </span>);
-
-        const missingHintsPart = (greenMissing.length === 0 && yellowMissing.length === 0 ? ' ' :
-                                  (<div>
-                                     {'Guess must use Hints: '}
-                                     {missingGreenComp}
-                                     {missingYellowComp}
-                                   </div>)
-                                 );
-                              
-        const notUsePart = (notInPoolUsed.length === 0 ? ' ' : ` cannot use ${notInPoolUsed.join(' ')}`);
-        
-        const hintsMsg = (
-            <div>
-              {missingHintsPart}
-              {notUsePart}
-            </div>
-        );
-        return hintsMsg;
-    }
 }
 
 // class for handling hints by just showing totals (harder)
@@ -220,35 +145,22 @@ class HintHandlerShowTotals extends HintHandler{
         }
     }
 
-    oldCheckUseAllHints(guess) {
-        // for each previous guess, see if we have at least as many total
-        // green+yellow chars matching as that guess had.  Complain about the first one
-        // that does not hold true.
-        const notEnoughs = [];
-        const notUses = [];
-        for (let gidx = 0; gidx < this.gameObj.guessList.length; gidx++){
-            const oldGuessObj = this.gameObj.guessList[gidx];
-            const [exact, wrongplace] = this.gameObj.doCompare(guess, oldGuessObj.guess);
-            const newLen = exact.length + wrongplace.length;
-            const oldLen = oldGuessObj.exact.length + oldGuessObj.wrongplace.length;
-            console.log(`old: ex:${oldGuessObj.exact.length} wp:${oldGuessObj.wrongplace.length}, new:  ex:${exact.length} wp:${wrongplace.length}, newlen=${newLen} oldlen=${oldLen}`);
-            if (newLen < oldLen) {
-                notEnoughs.push(oldGuessObj.guess);
-            }
-            else if (oldLen === 0 && newLen !== 0) {
-                notUses.push(oldGuessObj.guess);
-            }
-        }
-        if (notEnoughs.length === 0 && notUses.length === 0) return null;
-        let msg = '';
-        if (notEnoughs.length > 0) {
-            msg += `not enough chars from ${notEnoughs.join(', ')}. `;
-        }
-        if (notUses.length > 0) {
-            msg += `should not use chars from ${notUses.join(', ')}. `;
-        }
-        return msg;
+    countVals(posMap) {
+        let counts = Array.from([0, 0, 0]);
+        posMap.forEach(val => counts[val-1]++);
+        return counts;
     }
+    
+    comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
+        const [oldE, oldW, oldN] = this.countVals(oldPosMap);
+        const [newE, newW, newN] = this.countVals(newPosMap);
+        let errMsg = '';
+        if (oldE !== newE) errMsg += `exact count mismatch, ${oldE} != ${newE}, `;
+        if (oldW !== newW) errMsg += `wrongplace count mismatch, ${oldW} != ${newW}, `;
+        if (oldN !== newN) errMsg += `notuse count mismatch, ${oldN} != ${newN}, `;
+        return errMsg;
+    }
+    
 }
 
 class Game extends Component {
@@ -308,11 +220,12 @@ class Game extends Component {
     async startNewGame() {
         this.guessList = [];
         this.input = '';
+        this.switchKey = 0;
         this.notInPool = new Set();
         this.hintHandler = (this.settings.noMarkGuessChars ? new HintHandlerShowTotals(this) : new HintHandlerMarkChars(this));
         await this.buildWordList(this.settings.wordlen);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
-        this.answer = 'FORDS';
+        // this.answer = 'FORDS';
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
@@ -480,7 +393,7 @@ class Game extends Component {
                     marginTop: '5px',
                     textAlign: 'center',
                     // fontSize: '16px',
-                    key: this.guessList.length,
+                    key: n,
                 }}>
                   {chval}
                 </div>
@@ -616,7 +529,7 @@ class Game extends Component {
     // <div align='right' style={{display:'inline-block', textAlign:'right'}}>
     genSwitchSetting(settingName, labeltext) {
         return (
-            <div style={{float: 'left', width:'300px'}}>
+            <div key={this.switchKey++} style={{float: 'left', width:'300px'}}>
             <span style={{fontSize:'16px'}} >{`${labeltext}${nbsp}${nbsp}`} </span>
               <div style={{float: 'right'}} >
                 {this.getSwitch(settingName)}
