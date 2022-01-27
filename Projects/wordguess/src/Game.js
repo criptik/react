@@ -25,13 +25,6 @@ class HintHandler {
         this.gameObj = gameObj;
     }
 
-    arrayEquals(a, b) {
-        if (a.length !== b.length) return false;
-        a = a.sort();
-        b = b.sort();
-        return a.every((val, index) => val === b[index]);
-    }
-
     buildPosMap(len, exact, wrongplace) {
         let ary = new Array(len).fill(NOTUSE);
         exact.forEach(pos => ary[pos] = EXACT);
@@ -155,9 +148,9 @@ class HintHandlerShowTotals extends HintHandler{
         const [oldE, oldW, oldN] = this.countVals(oldPosMap);
         const [newE, newW, newN] = this.countVals(newPosMap);
         let errMsg = '';
-        if (oldE !== newE) errMsg += `exact count mismatch, ${oldE} != ${newE}, `;
-        if (oldW !== newW) errMsg += `wrongplace count mismatch, ${oldW} != ${newW}, `;
-        if (oldN !== newN) errMsg += `notuse count mismatch, ${oldN} != ${newN}, `;
+        if (oldE !== newE) errMsg += `from ${guessObj.guess}, need ${oldE} exact chars, not ${newE}; `;
+        if (oldW !== newW) errMsg += `from ${guessObj.guess}, need ${oldW} misplaced chars, not ${newW}; `;
+        // if (oldN !== newN) errMsg += `notuse count mismatch, ${oldN} != ${newN}, `;
         return errMsg;
     }
     
@@ -224,8 +217,10 @@ class Game extends Component {
         this.notInPool = new Set();
         this.hintHandler = (this.settings.noMarkGuessChars ? new HintHandlerShowTotals(this) : new HintHandlerMarkChars(this));
         await this.buildWordList(this.settings.wordlen);
+        this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         // this.answer = 'FORDS';
+        // this.answer = 'FLYER';
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
@@ -314,6 +309,16 @@ class Game extends Component {
                 exact,
                 wrongplace,
             });
+            const basePosMap = this.hintHandler.buildPosMap(this.answer.length, exact, wrongplace); 
+            this.possibleList = this.possibleList.filter(word => {
+                const [tstexact, tstwrongplace] = this.doCompare(this.input, word);
+                const tstPosMap = this.hintHandler.buildPosMap(this.answer.length, tstexact, tstwrongplace);
+                const ok = tstPosMap.every((val, index) => val === basePosMap[index]);
+                // if (ok) console.log(word, tstPosMap, basePosMap);
+                return ok;
+            });
+            // console.log(this.possibleList);
+            
             if (exact.length === this.answer.length) {
                 this.setState(
                     {gameOver:true,
@@ -530,7 +535,7 @@ class Game extends Component {
     genSwitchSetting(settingName, labeltext) {
         return (
             <div key={this.switchKey++} style={{float: 'left', width:'300px'}}>
-            <span style={{fontSize:'16px'}} >{`${labeltext}${nbsp}${nbsp}`} </span>
+            <span style={{fontSize:'14px'}} >{`${labeltext}${nbsp}${nbsp}`} </span>
               <div style={{float: 'right'}} >
                 {this.getSwitch(settingName)}
               </div>
@@ -543,7 +548,7 @@ class Game extends Component {
     genNumericInputSetting(settingName, labeltext) {
         return (
             <div style={{float: 'left', width:'320px'}}>
-              <span style={{fontSize:'16px'}} >
+              <span style={{fontSize:'14px'}} >
                 {labeltext}
               </span>
               <div style={{float:'right'}}>
@@ -616,9 +621,9 @@ class Game extends Component {
                   <div style={{width:'300px', display:'inline-block'}}>
                     {this.genNumericInputSetting('wordlen', 'Word Length? (longer=harder)') }
                     <br/>
-                    {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
                     {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
-                    {this.genSwitchSetting('hintsMustBeUsed', 'Hints Must Be Used? (harder)') }
+                    {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
+                    {this.genSwitchSetting('hintsMustBeUsed', 'All Hints Must Be Used? (harder and annoying)') }
                   </div>
                 </div>
             );
@@ -636,7 +641,7 @@ class Game extends Component {
                     >
                       {String.fromCharCode(0x2699)}
                     </button>
-                    WordGuess Game
+                    {`WordGuess Game,   ${this.possibleList ? this.possibleList.length : 0} Possible`}
                   </div>
                 <div
                   onKeyDown = {this.onRealKeyDown.bind(this)}
