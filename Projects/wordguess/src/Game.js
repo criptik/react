@@ -3,11 +3,12 @@ import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
 import NumericInput from "react-numeric-input";
 import Switch from "react-switch";
-import * as _ from 'underscore';
+// import * as _ from 'underscore';
 import "./index.css";
 
 const nbsp = String.fromCharCode(160);
 const [EXACT, WRONG, NOTUSE] = [1,2,3];
+const [EXACTBIT, WRONGBIT, NOTUSEBIT] = [2,4,8];
 
 // abstract class for the different ways of handling hints
 class HintHandler {
@@ -22,28 +23,22 @@ class HintHandler {
         if (this.formatGuessTotals === undefined) {
             throw new TypeError(`class ${this.constructor.name} did not implement formatGuessTotals method`);
         }
+        if (this.comparePosMaps === undefined) {
+            throw new TypeError(`class ${this.constructor.name} did not implement comparePosMaps method`);
+        }
         this.gameObj = gameObj;
-    }
-
-    buildPosMap(len, exact, wrongplace) {
-        let ary = new Array(len).fill(NOTUSE);
-        exact.forEach(pos => ary[pos] = EXACT);
-        wrongplace.forEach(pos => ary[pos] = WRONG);
-        return ary;
     }
 
     //framework for checking all hints
     checkUseAllHints(newGuess) {
-        const len = newGuess.length;
         // for each previous guess, going backwards, see if our guess would produce a similar result
         for (let gidx = this.gameObj.guessList.length-1; gidx >= 0; gidx--) {
             const guessObj = this.gameObj.guessList[gidx];
-            const oldPosMap = this.buildPosMap(len, guessObj.exact, guessObj.wrongplace);
+            const oldPosMap = guessObj.posMap;
             // get compare info for that guess vs. our new guess
-            let [newExact, newWrongPlace] = this.gameObj.doCompare(guessObj.guess, newGuess);
-            const newPosMap = this.buildPosMap(len, newExact, newWrongPlace);
+            const newPosMap = this.gameObj.doCompare(guessObj.guess, newGuess);
             const errMsg = this.comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj);
-            if (errMsg.length > 0) return `${errMsg} see ${guessObj.guess}`;
+            if (errMsg !== null) return errMsg;
         }
         return null; // if we got this far
     }
@@ -54,11 +49,11 @@ class HintHandler {
 class HintHandlerMarkChars extends HintHandler{
     computeGuessCharColor(guessObj, pos, chval, submitted) {
         let bgcolor = 'white'; // default
-        if (guessObj.exact.includes(pos)) {
+        if (guessObj.posMap[pos] === EXACT) {
             bgcolor = 'lightgreen';
             this.gameObj.greenString += ` ${chval}`;
         }
-        else if (guessObj.wrongplace.includes(pos)) {
+        else if (guessObj.posMap[pos] === WRONG) {
             bgcolor = 'yellow';
             this.gameObj.yellowString += ` ${chval}`;
         }
@@ -98,6 +93,7 @@ class HintHandlerMarkChars extends HintHandler{
                 errMsg += this.genErrMsg(newCode, oldCode, pos, newGuess, guessObj.guess);
             }
         }
+        if (errMsg.length > 0) errMsg += `see ${guessObj.guess}`;
         return errMsg;
     }
 
@@ -109,48 +105,72 @@ class HintHandlerShowTotals extends HintHandler{
     // which is the special case when no green or yellow
     computeGuessCharColor(guessObj, pos, chval, submitted) {
         const bgcolor = 'white';
-        if (submitted && (guessObj.exact.length + guessObj.wrongplace.length === 0)) {
+        if (submitted && (guessObj.posMap.every(val => val === NOTUSE))) {
             this.gameObj.notInPool.add(chval);
         }
         return bgcolor;
     }
 
+    styleForTotals(type) {
+        return {
+            borderRadius: '50%',
+            height: '20px',
+            width: '20px',
+            display: 'inline-block',
+            marginLeft: '10px',
+            marginBottom: '5px',
+            textAlign: 'center',
+            backgroundColor: (type === EXACT ? 'lightgreen' : 'yellow'),
+        };
+    }
+    
     // in this handler we do show totals at end of guess line
     formatGuessTotals(guessObj, guessLine) {
-        const exlen = guessObj.exact.length;
-        const wplen = guessObj.wrongplace.length;
-        for (let n=0; n<2; n++) {
-            const chval = (n===0 ? exlen : wplen);
+        const [exlen, wplen] = this.countVals(guessObj.posMap);
+        [EXACT, WRONG].forEach(type => {
+            const chval = (type===EXACT ? exlen : wplen);
             guessLine.push(
-                <div style={{
-                    borderRadius: '50%',
-                    height: '20px',
-                    width: '20px',
-                    display: 'inline-block',
-                    marginLeft: '10px',
-                    marginBottom: '5px',
-                    textAlign: 'center',
-                    backgroundColor: (n ? 'yellow' : 'lightgreen'),
-                }}>
+                <div style={this.styleForTotals(type)} >
                   {chval}
                 </div>
             );
-        }
+        });
     }
-
+    
     countVals(posMap) {
         let counts = Array.from([0, 0, 0]);
         posMap.forEach(val => counts[val-1]++);
         return counts;
     }
+
+    genCountSpans(exact, wrong) {
+        return (
+            <Fragment>
+              <span style={this.styleForTotals(EXACT)}>
+                {exact}
+              </span>
+              <span style={this.styleForTotals(WRONG)}>
+                {wrong}
+              </span>
+            </Fragment>
+        );
+    }
     
     comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
-        const [oldE, oldW, oldN] = this.countVals(oldPosMap);
-        const [newE, newW, newN] = this.countVals(newPosMap);
+        const [oldE, oldW] = this.countVals(oldPosMap);
+        const [newE, newW] = this.countVals(newPosMap);
         let errMsg = '';
-        if (oldE !== newE) errMsg += `from ${guessObj.guess}, need ${oldE} exact chars, not ${newE}; `;
-        if (oldW !== newW) errMsg += `from ${guessObj.guess}, need ${oldW} misplaced chars, not ${newW}; `;
-        // if (oldN !== newN) errMsg += `notuse count mismatch, ${oldN} != ${newN}, `;
+        if (oldE !== newE || oldW !== newW) {
+            console.log(oldE, oldW, newE, newW);
+            errMsg = (
+                <Fragment>
+                  {`from ${guessObj.guess}, need `}
+                  {this.genCountSpans(oldE, oldW)}
+                  {`,${nbsp}${nbsp}not `}
+                  {this.genCountSpans(newE, newW)}
+                </Fragment>
+            );
+        }
         return errMsg;
     }
     
@@ -163,7 +183,7 @@ class Game extends Component {
             wordlen: 5,
             guessMustBeWord : true,
             noMarkGuessChars : false,            
-            hintsMustBeUsed : true,
+            hintUsePolicy : EXACTBIT,
         };
         this.state = {
             layoutName: "default",
@@ -214,7 +234,7 @@ class Game extends Component {
         this.guessList = [];
         this.input = '';
         this.switchKey = 0;
-        this.notInPool = new Set();
+        // this.notInPool = new Set();
         this.hintHandler = (this.settings.noMarkGuessChars ? new HintHandlerShowTotals(this) : new HintHandlerMarkChars(this));
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
@@ -247,36 +267,29 @@ class Game extends Component {
         console.log(`wordlist for len ${wordlen} built`);
     }
 
-    getNotUsedPosAry(exact, wrongplace) {
-        const exandwp = [...exact, ...wrongplace]
-        return _.range(this.answer.length).filter(pos => !exandwp.includes(pos));
-    }
-    
     doCompare(guess, base) {
-        let exact = [];
-        let wrongplace = [];
         let gchars = [...guess];
         let bchars = [...base];
-        // console.log(gchars, bchars);
+        let posMap = new Array(this.settings.wordlen).fill(NOTUSE);
         // first do exact matches
-        for (let n=0; n<gchars.length; n++) {
-            const gchar = gchars[n];
-            if (gchar === bchars[n]) {
-                bchars[n] = null;
-                gchars[n] = null;
-                exact.push(n);
+        gchars.forEach( (gchar, index) => {
+            if (gchar === bchars[index]) {
+                bchars[index] = null;
+                gchars[index] = null;
+                posMap[index] = EXACT;
             }
-        }
+        });
         // then do any more matches
-        for (let n=0; n<gchars.length; n++) {
-            const gchar = gchars[n];
-            if (gchar !== null && bchars.includes(gchar)) {
-                let pos = bchars.indexOf(gchar);
-                bchars[pos] = null;
-                wrongplace.push(n);
+        gchars.forEach( (gchar, index) => {
+            if (gchar !== null) {
+                const pos = bchars.indexOf(gchar);
+                if (pos >= 0) {
+                    bchars[pos] = null;
+                    posMap[index] = WRONG;
+                }
             }
-        }
-        return [exact, wrongplace];
+        });
+        return posMap;
     }
 
     mostRecentGuess() {
@@ -296,30 +309,28 @@ class Game extends Component {
         else if (this.settings.hintsMustBeUsed && this.guessList.length > 0) {
             const messageJsx = this.hintHandler.checkUseAllHints(this.input);
             if (messageJsx) {
+                console.log('messageJsx', messageJsx);
                 this.setMessage(messageJsx, 'rgb(230,230,230)');
                 legalGuess = false;
             }
         }
         if (legalGuess) {    
             // guess is legal, see how right it is
-            const [exact, wrongplace] = this.doCompare(this.input, this.answer);
-            // console.log('exact:', exact, ', wrongplace:', wrongplace);
+            const posMap = this.doCompare(this.input, this.answer);
             this.guessList.push({
                 guess: this.input,
-                exact,
-                wrongplace,
+                posMap,
             });
-            const basePosMap = this.hintHandler.buildPosMap(this.answer.length, exact, wrongplace); 
+            const basePosMap = posMap;
             this.possibleList = this.possibleList.filter(word => {
-                const [tstexact, tstwrongplace] = this.doCompare(this.input, word);
-                const tstPosMap = this.hintHandler.buildPosMap(this.answer.length, tstexact, tstwrongplace);
+                const tstPosMap = this.doCompare(this.input, word);
                 const ok = tstPosMap.every((val, index) => val === basePosMap[index]);
                 // if (ok) console.log(word, tstPosMap, basePosMap);
                 return ok;
             });
             // console.log(this.possibleList);
             
-            if (exact.length === this.answer.length) {
+            if (posMap.every(val => val === EXACT)) {
                 this.setState(
                     {gameOver:true,
                      message: this.buildGameOverMessage(),
@@ -382,9 +393,9 @@ class Game extends Component {
     formatGuess(guessObj, submitted=false) {
         let guessLine = [];
         const guess = guessObj.guess;
-        // console.log(`guessObj: (${guess})`, guessObj.exact, guessObj.wrongplace, 'this.answer', this.answer);
         for (let n=0; n < this.answer.length; n++) {
             const chval = (n < guess.length ? guess[n] : nbsp);
+            // console.log('guessObj', guessObj);
             const bgcolor = this.hintHandler.computeGuessCharColor(guessObj, n, chval, submitted);
             guessLine.push(
                 <div style={{
@@ -574,14 +585,60 @@ class Game extends Component {
               </div>
             </div>
         );
+    } 
+
+    genRadioSetting(groupName, selectVal, text, isHorizontal) {
+        // console.log('genRadioSetting', groupName, selectVal, text, isHorizontal);
+        const lineBreak = (isHorizontal ? '' : <br/>);
+        return (
+            <Fragment>
+              <input
+                type="radio"
+                value={parseInt(selectVal)}
+                name={groupName}
+                checked={this.settings[groupName] === parseInt(selectVal)}
+                style = {{marginLeft: '15px'}}
+                onChange={(event) => {
+                    const name = event.target.name;
+                    const val = parseInt(event.target.value);
+                    this.settings[name] = val;
+                    this.setState({settings: this.settings});
+                    // console.log('onChange for Radio', name, val, this.settings, event);
+                }}
+              />
+              {text}
+              {lineBreak}
+            </Fragment>
+        );
     }
+
+    genRadioGroupSetting(groupName, groupHeaderText, optsArray, isHorizontal=false) {
+        // generate the radio options section
+        // optsArray is a set of text, val pairs
+        const optsJsxArray = optsArray.map((optset) => {
+            const [text, val] = optset;
+            return this.genRadioSetting(groupName, val, text, isHorizontal);
+        });
+        return (
+            <Fragment>
+              {groupHeaderText}
+              <br/>
+              <div
+                value = {this.settings[groupName]}
+              >
+                {optsJsxArray}
+              </div>
+            </Fragment>
+        );
+    }
+
     
     render() {
         // console.log('render', this.state.message, this.focusRef);
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
-        // this.notInPool = new Set();
+        this.notInPool = new Set();
         let guessLines = [];
         this.state.guessList.forEach( (guessObj) => {
             guessLines.push(this.formatGuess(guessObj, true));
@@ -591,8 +648,7 @@ class Game extends Component {
         if (!this.state.gameOver) {
             const newObj = {
                 guess: this.state.input,
-                exact: [],
-                wrongplace: [],
+                posMap: new Array(this.settings.wordlen).fill(NOTUSE),
             };
             guessLines.push(this.formatGuess(newObj, false));
         }
@@ -618,12 +674,19 @@ class Game extends Component {
                   </button>
                   Settings
                   <br/>
-                  <div style={{width:'300px', display:'inline-block'}}>
-                    {this.genNumericInputSetting('wordlen', 'Word Length? (longer=harder)') }
+                  <div style={{width:'300px', display:'inline-block', fontSize:'14px'}}>
+                    {this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
+                        ['5', 5], ['6', 6], ['7', 7], ['8', 8],
+                    ], true)}
                     <br/>
-                    {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
                     {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
-                    {this.genSwitchSetting('hintsMustBeUsed', 'All Hints Must Be Used? (harder and annoying)') }
+                    {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
+                    {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
+                        ['None (most flexible)', 0],
+                        ['Must Reuse Green (slightly harder)', EXACTBIT],
+                        ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
+                        ['Must Reuse All Hints (hardest and annoying)', EXACTBIT+WRONGBIT+NOTUSEBIT]
+                    ])}
                   </div>
                 </div>
             );
