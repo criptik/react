@@ -43,6 +43,10 @@ class HintHandler {
         return null; // if we got this far
     }
 
+    policyIncludes(bits) {
+        // console.log('policyIncludes', this.gameObj.settings.hintUsePolicy, bits);
+        return ((this.gameObj.settings.hintUsePolicy & bits) !== 0)
+    }
 }
 
 // class for handling hints by marking chars
@@ -70,15 +74,16 @@ class HintHandlerMarkChars extends HintHandler{
 
     genErrMsg(newCode, oldCode, pos, newGuess, oldGuess) {
         const oldChr = oldGuess[pos];
+        // we know policy at least includes EXACT
         if (oldCode === EXACT) return `chr ${pos+1} must be ${oldChr}, `;
-        if (newCode === EXACT)  return `chr ${pos+1} must not be ${oldChr}, `;
-        if (oldCode === NOTUSE && newCode === WRONG) {
+        if (this.policyIncludes(NOTUSEBIT) && oldCode === NOTUSE) {
             return `must not use ${oldChr}, `;
         }
-        if (newCode === NOTUSE && oldCode === WRONG) {
-            return `must contain ${oldChr}, `;
+        if (this.policyIncludes(WRONGBIT)&& oldCode === WRONG){
+            if (newCode === EXACT) return `chr ${pos+1} must not be ${oldChr}, `;
+            if (newCode === NOTUSE) return `must contain ${oldChr}, `;
         }
-        return `chr ${pos+1} ${newCode} !== ${oldCode}, `;        
+        return '';
     }
 
     comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
@@ -144,14 +149,17 @@ class HintHandlerShowTotals extends HintHandler{
     }
 
     genCountSpans(exact, wrong) {
+        const yellowSpan = (!this.policyIncludes(WRONGBIT) ? '' : (
+              <span style={this.styleForTotals(WRONG)}>
+                {wrong}
+              </span>
+        ));            
         return (
             <Fragment>
               <span style={this.styleForTotals(EXACT)}>
                 {exact}
               </span>
-              <span style={this.styleForTotals(WRONG)}>
-                {wrong}
-              </span>
+              {yellowSpan}
             </Fragment>
         );
     }
@@ -160,8 +168,8 @@ class HintHandlerShowTotals extends HintHandler{
         const [oldE, oldW] = this.countVals(oldPosMap);
         const [newE, newW] = this.countVals(newPosMap);
         let errMsg = '';
-        if (oldE !== newE || oldW !== newW) {
-            console.log(oldE, oldW, newE, newW);
+        if (oldE !== newE || (this.policyIncludes(WRONGBIT) && oldW !== newW)) {
+            // console.log(this.gameObj.settings.hintUsePolicy, oldE, oldW, newE, newW);
             errMsg = (
                 <Fragment>
                   {`from ${guessObj.guess}, need `}
@@ -240,7 +248,7 @@ class Game extends Component {
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         // this.answer = 'FORDS';
-        // this.answer = 'FLYER';
+        // this.answer = 'MOGUL';
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
@@ -306,7 +314,7 @@ class Game extends Component {
             this.setMessage('Guess must be a Legal Scrabble Word');
             legalGuess = false;
         }
-        else if (this.settings.hintsMustBeUsed && this.guessList.length > 0) {
+        else if (this.settings.hintUsePolicy !== 0 && this.guessList.length > 0) {
             const messageJsx = this.hintHandler.checkUseAllHints(this.input);
             if (messageJsx) {
                 console.log('messageJsx', messageJsx);
@@ -319,6 +327,7 @@ class Game extends Component {
             const posMap = this.doCompare(this.input, this.answer);
             this.guessList.push({
                 guess: this.input,
+                index : this.guessList.length,
                 posMap,
             });
             const basePosMap = posMap;
@@ -398,7 +407,7 @@ class Game extends Component {
             // console.log('guessObj', guessObj);
             const bgcolor = this.hintHandler.computeGuessCharColor(guessObj, n, chval, submitted);
             guessLine.push(
-                <div style={{
+                <div key={n} style={{
                     border: '1px solid black',
                     backgroundColor: bgcolor,
                     height: '20px',
@@ -409,7 +418,6 @@ class Game extends Component {
                     marginTop: '5px',
                     textAlign: 'center',
                     // fontSize: '16px',
-                    key: n,
                 }}>
                   {chval}
                 </div>
@@ -587,7 +595,7 @@ class Game extends Component {
         );
     } 
 
-    genRadioSetting(groupName, selectVal, text, isHorizontal) {
+    genRadioSetting(groupName, selectVal, text, index, isHorizontal) {
         // console.log('genRadioSetting', groupName, selectVal, text, isHorizontal);
         const lineBreak = (isHorizontal ? '' : <br/>);
         return (
@@ -596,6 +604,7 @@ class Game extends Component {
                 type="radio"
                 value={parseInt(selectVal)}
                 name={groupName}
+                key={index}
                 checked={this.settings[groupName] === parseInt(selectVal)}
                 style = {{marginLeft: '15px'}}
                 onChange={(event) => {
@@ -615,9 +624,9 @@ class Game extends Component {
     genRadioGroupSetting(groupName, groupHeaderText, optsArray, isHorizontal=false) {
         // generate the radio options section
         // optsArray is a set of text, val pairs
-        const optsJsxArray = optsArray.map((optset) => {
+        const optsJsxArray = optsArray.map((optset, index) => {
             const [text, val] = optset;
-            return this.genRadioSetting(groupName, val, text, isHorizontal);
+            return this.genRadioSetting(groupName, val, text, index, isHorizontal);
         });
         return (
             <Fragment>
