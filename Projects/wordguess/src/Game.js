@@ -1,9 +1,9 @@
 import React, { Component, Fragment } from "react";
 import Keyboard from "react-simple-keyboard";
 import "react-simple-keyboard/build/css/index.css";
-import NumericInput from "react-numeric-input";
-import Switch from "react-switch";
 import {HintHandler} from './HintHandler.js';
+import {SettingsPage} from './SettingsPage.js';
+
 // import * as _ from 'underscore';
 import "./index.css";
 
@@ -346,129 +346,6 @@ class Game extends Component {
     getPoolChars() {
         return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.notInPool.has(c));
     }
-
-    getSwitch(settingName) {
-        if (true) return (
-            <input
-              type="checkbox"
-              checked={this.state.settings[settingName]}
-              onChange={() => {
-                  this.settings[settingName] = !this.settings[settingName];
-                  this.setState({settings: this.settings});
-              }}
-              id={settingName}
-              height={15}
-              width={30}
-              style={{float: 'right'}}
-            />
-        )
-        else return (
-            <Switch
-              className="react-switch"
-              onChange={(checked) => {
-                  this.settings[settingName] = checked;
-                  this.setState({settings: this.settings});
-              }}
-              id={settingName}
-              checked={this.state.settings[settingName]}
-              height={15}
-              width={30}
-              style={{float: 'right'}}
-            />
-        );
-    }
-    
-    // <div align='right' style={{display:'inline-block', textAlign:'right'}}>
-    genSwitchSetting(settingName, labeltext) {
-        return (
-            <div key={this.switchKey++} style={{float: 'left', width:'300px'}}>
-            <span style={{fontSize:'14px'}} >{`${labeltext}${nbsp}${nbsp}`} </span>
-              <div style={{float: 'right'}} >
-                {this.getSwitch(settingName)}
-              </div>
-              <br/>
-            </div>
-        );
-    
-    }
-
-    genNumericInputSetting(settingName, labeltext) {
-        return (
-            <div style={{float: 'left', width:'320px'}}>
-              <span style={{fontSize:'14px'}} >
-                {labeltext}
-              </span>
-              <div style={{float:'right'}}>
-                <NumericInput
-                  id={settingName}
-                  min={5}
-                  max={8}
-                  value={this.state.settings[settingName] || ""} 
-                  onChange={(val) => {
-                      this.settings[settingName] = val;
-                      this.setState({settings: this.settings});
-                  }}
-                  style = {{
-                      border: '1px solid black',
-                      input: {
-                          marginLeft: '5px',
-                          height: '18px',
-                          width: '40px',
-                      },
-                  }}
-                >
-                </NumericInput>
-              </div>
-            </div>
-        );
-    } 
-
-    genRadioSetting(groupName, selectVal, text, index, isHorizontal) {
-        // console.log('genRadioSetting', groupName, selectVal, text, isHorizontal);
-        const lineBreak = (isHorizontal ? '' : <br/>);
-        return (
-            <Fragment>
-              <input
-                type="radio"
-                value={parseInt(selectVal)}
-                name={groupName}
-                key={index}
-                checked={this.settings[groupName] === parseInt(selectVal)}
-                style = {{marginLeft: '15px'}}
-                onChange={(event) => {
-                    const name = event.target.name;
-                    const val = parseInt(event.target.value);
-                    this.settings[name] = val;
-                    this.setState({settings: this.settings});
-                    // console.log('onChange for Radio', name, val, this.settings, event);
-                }}
-              />
-              {text}
-              {lineBreak}
-            </Fragment>
-        );
-    }
-
-    genRadioGroupSetting(groupName, groupHeaderText, optsArray, isHorizontal=false) {
-        // generate the radio options section
-        // optsArray is a set of text, val pairs
-        const optsJsxArray = optsArray.map((optset, index) => {
-            const [text, val] = optset;
-            return this.genRadioSetting(groupName, val, text, index, isHorizontal);
-        });
-        return (
-            <Fragment>
-              {groupHeaderText}
-              <br/>
-              <div
-                value = {this.settings[groupName]}
-              >
-                {optsJsxArray}
-              </div>
-            </Fragment>
-        );
-    }
-
     
     render() {
         // console.log('render', this.state.message, this.focusRef);
@@ -491,43 +368,6 @@ class Game extends Component {
         }
         const poolLine = (this.state.guessList.length === 0 ? ' ' :
                              `Pool: ${this.getPoolChars().join(' ')}`);
-
-        const settingsPage= () => {
-            return (
-                // first is button to return to game
-                <div>
-                  <button
-                    style = {{
-                        marginRight: '10px',
-                        marginBottom: '5px',
-                    }}
-                    onClick = {() => {
-                        this.setState({useGamePage:true});
-                        this.startNewGame();
-                    }}
-
-                  >
-                    {String.fromCharCode(0x2b05)}
-                  </button>
-                  Settings
-                  <br/>
-                  <div style={{width:'300px', display:'inline-block', fontSize:'14px'}}>
-                    {this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
-                        ['5', 5], ['6', 6], ['7', 7], ['8', 8],
-                    ], true)}
-                    <br/>
-                    {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
-                    {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
-                    {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
-                        ['None (most flexible)', 0],
-                        ['Must Reuse Green (slightly harder)', EXACTBIT],
-                        ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
-                        ['Must Reuse All Hints (hardest and annoying)', EXACTBIT+WRONGBIT+NOTUSEBIT]
-                    ])}
-                  </div>
-                </div>
-            );
-        }
 
         const gamePage = () => {
             return (
@@ -558,7 +398,7 @@ class Game extends Component {
         }
 
         return (
-            this.state.useGamePage ? gamePage() : settingsPage()
+            this.state.useGamePage ? gamePage() : <SettingsPage  gameObj={this}/>
         );
     }
 }
