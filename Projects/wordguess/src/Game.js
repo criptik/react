@@ -76,7 +76,6 @@ class Game extends Component {
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         // this.answer = 'FORDS';
-        // this.answer = 'MOGUL';
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
@@ -145,7 +144,7 @@ class Game extends Component {
         else if (this.settings.hintUsePolicy !== 0 && this.guessList.length > 0) {
             const messageJsx = this.hintHandler.checkUseAllHints(this.input);
             if (messageJsx) {
-                console.log('messageJsx', messageJsx);
+                // console.log('messageJsx', messageJsx);
                 this.setMessage(messageJsx, 'rgb(230,230,230)');
                 legalGuess = false;
             }
@@ -161,7 +160,7 @@ class Game extends Component {
             const basePosMap = posMap;
             this.possibleList = this.possibleList.filter(word => {
                 const tstPosMap = this.doCompare(this.input, word);
-                const ok = tstPosMap.every((val, index) => val === basePosMap[index]);
+                const ok = this.hintHandler.possibleListFilter(tstPosMap, basePosMap);
                 // if (ok) console.log(word, tstPosMap, basePosMap);
                 return ok;
             });

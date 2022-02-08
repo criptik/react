@@ -99,6 +99,9 @@ class HintHandlerMarkChars extends HintHandler{
         return errMsg;
     }
 
+    possibleListFilter(tstPosMap, basePosMap) {
+        return tstPosMap.every((val, index) => val === basePosMap[index]);
+    }
 }
 
 // class for handling hints by just showing totals (harder)
@@ -164,7 +167,7 @@ class HintHandlerShowTotals extends HintHandler{
     comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
         const [oldE, oldW] = this.countVals(oldPosMap);
         const [newE, newW] = this.countVals(newPosMap);
-        let errMsg = '';
+        let errMsg = null;
         if (oldE !== newE || (this.policyIncludes(WRONGBIT) && oldW !== newW)) {
             // console.log(this.gameObj.settings.hintUsePolicy, oldE, oldW, newE, newW);
             errMsg = (
@@ -178,6 +181,13 @@ class HintHandlerShowTotals extends HintHandler{
         }
         return errMsg;
     }
+
+    possibleListFilter(tstPosMap, basePosMap) {
+        const [tstE, tstW] = this.countVals(tstPosMap);
+        const [baseE, baseW] = this.countVals(basePosMap);
+        return (tstE === baseE && tstW === baseW);
+    }
+    
 }
 
 export {HintHandler};
