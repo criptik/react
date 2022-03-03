@@ -59,8 +59,11 @@ class HintHandlerMarkChars extends HintHandler{
             this.gameObj.yellowString += ` ${chval}`;
         }
         else if (submitted) {
-            this.gameObj.greyString += ` ${chval}`;
-            this.gameObj.notInPool.add(chval);
+            const markedCount = this.getMarkedCount(guessObj.guess, guessObj.posMap, chval);
+            if (markedCount === 0) {
+                this.gameObj.greyString += ` ${chval}`;
+                this.gameObj.notInPool.add(chval);
+            }
         }
         return bgcolor;
     }
@@ -69,16 +72,31 @@ class HintHandlerMarkChars extends HintHandler{
     formatGuessTotals(guessObj, guessLine) {
     }
 
-    genErrMsg(newCode, oldCode, pos, newGuess, oldGuess) {
+    getMarkedCount(guess, posMap, searchChr) {
+        let count = 0;
+        Array.from(guess).forEach( (chr, idx) => {
+            count += (posMap[idx] !== NOTUSE && chr === searchChr) ? 1 : 0;
+        });
+        return count;
+    }
+    
+    genErrMsg(newPosMap, oldPosMap, pos, newGuess, oldGuess) {
+        const newCode = newPosMap[pos];
+        const oldCode = oldPosMap[pos];
         const oldChr = oldGuess[pos];
         // we know policy at least includes EXACT
         if (oldCode === EXACT) return `chr ${pos+1} must be ${oldChr}, `;
         if (this.policyIncludes(NOTUSEBIT) && oldCode === NOTUSE) {
-            return `must not use ${oldChr}, `;
+            // see if oldChr is used in EXACT or WRONG to adjust errmsg
+            const count = this.getMarkedCount(oldGuess, oldPosMap, oldChr);
+            const usesStr = (count === 1 ? 'use' :'uses');
+            return (count === 0 ?
+                    `must not use ${oldChr}, ` :
+                    `only ${count} ${usesStr} of ${oldChr}, `);
         }
         if (this.policyIncludes(WRONGBIT)&& oldCode === WRONG){
             if (newCode === EXACT) return `chr ${pos+1} must not be ${oldChr}, `;
-            if (newCode === NOTUSE) return `must contain ${oldChr}, `;
+            if (newCode === NOTUSE) return `must use ${oldChr} somewhere, `;
         }
         return '';
     }
@@ -92,7 +110,7 @@ class HintHandlerMarkChars extends HintHandler{
             const oldCode = oldPosMap[pos];
             if (newCode !== oldCode) {
                 // errMsg += `chr ${pos+1} ${newCode} !== ${oldCode}, `;
-                errMsg += this.genErrMsg(newCode, oldCode, pos, newGuess, guessObj.guess);
+                errMsg += this.genErrMsg(newPosMap, oldPosMap, pos, newGuess, guessObj.guess);
             }
         }
         if (errMsg.length > 0) errMsg += `see ${guessObj.guess}`;

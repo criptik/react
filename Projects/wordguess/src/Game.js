@@ -75,7 +75,7 @@ class Game extends Component {
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
-        // this.answer = 'FORDS';
+        // this.answer = 'TEMPS';
         console.log('this.answer =', this.answer);
         this.setState({
             input: this.input,
@@ -91,7 +91,7 @@ class Game extends Component {
     async buildWordList(wordlen) {
         if (wordlen === this.curAnswerLen) return;
         this.curAnswerLen = wordlen;
-        const URL = `./ospd${wordlen}.txt`;
+        const URL = `/wordguess/ospd${wordlen}.txt`;
         const data = await fetch(URL);
         console.log('fetch complete');
         const text = await data.text();
