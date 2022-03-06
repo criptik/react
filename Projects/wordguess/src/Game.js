@@ -10,18 +10,48 @@ import "./index.css";
 const nbsp = String.fromCharCode(160);
 const [EXACT, WRONG, NOTUSE] = [1,2,3];
 const [EXACTBIT, WRONGBIT, NOTUSEBIT] = [2,4,8];
+const savedStateName = 'wordguessSavedState';
+const savedStateFields = [
+    'state',
+    'settings',
+    'useVirtKeyboard',
+    'answer',
+    'guessList',
+    'gameOver',
+    'message',
+    'keyboard',
+];
 
 
 class Game extends Component {
     constructor() {
         super();
+        // window.localStorage.removeItem(savedStateName);
+        const savedStateJSON = window.localStorage.getItem(savedStateName);
+        // console.log('savedStateJSON:', savedStateJSON);
+        if (savedStateJSON) {
+            this.restoreSavedState(savedStateJSON);
+        }
+        else {
+            this.state = {};
+            this.setDefaultGameState();
+        }
+    }
+
+    setDefaultGameState() {
+        console.log('setting default game state');
         this.settings = {
             wordlen: 5,
             guessMustBeWord : true,
             noMarkGuessChars : false,            
             hintUsePolicy : EXACTBIT,
         };
-        this.state = {
+        this.useVirtKeyboard = false;
+        this.answer = '';
+        this.focusRef = React.createRef();
+        this.usedDefaultGameState = true;
+        // this.state here because direct state mutation allowed only in constructor
+        const initState = {
             layoutName: "default",
             input: "",
             letterMap: {},
@@ -30,11 +60,37 @@ class Game extends Component {
             settings: this.settings,
             message: null,
         };
-        this.useVirtKeyboard = false;
-        this.answer = '';
-        this.focusRef = React.createRef();
+        for (let field in initState) this.setState({field : initState[field]});
     }
 
+    async restoreSavedState(savedStateJSON) {
+        const savedState = JSON.parse(savedStateJSON);
+        // console.log('savedState', savedState);
+        savedStateFields.forEach( (field) => this[field] = savedState[field]);
+        this.focusRef = React.createRef();
+        this.hintHandler = HintHandler.getHintHandler(this);
+        await this.buildWordList(this.settings.wordlen);
+        this.usedDefaultGameState = false;
+        this.input = '';
+        // for (let field in savedState.state) this.setState({field : savedState[field]});
+        // TODO: reconstruct possibleList
+        this.possibleList = Array.from(this.wordList);
+        this.guessList.forEach((guessObj) => {
+            this.possibleList = this.getNewPossibleList(guessObj.guess, guessObj.posMap);
+        });
+        this.setState({...savedState,
+                       useGamePage:true,
+                       input: this.input,
+                       gameOver: this.gameOver,
+                       guessList: this.guessList,
+                       message: (this.gameOver ? this.buildGameOverMessage() : ''),                       
+        });
+        // we believe notInPool will be rebuilt on each render so no need to restore here
+        this.tempAlert('Restored Saved Game State', 1500);
+        // console.log('using saved game state');
+        // console.log('state:', savedState.state);
+    }
+    
     tempAlert(msg,duration,bgcolor='red') {
         // console.log(msg);
         var el = document.createElement("div");
@@ -53,7 +109,7 @@ class Game extends Component {
     }
     
     async componentDidMount() {
-        this.startNewGame();
+        if (this.usedDefaultGameState) this.startNewGame();
         if (this.focusRef && this.focusRef.current) {
             this.focusRef.focus();
         }
@@ -69,14 +125,13 @@ class Game extends Component {
     async startNewGame() {
         this.guessList = [];
         this.input = '';
-        this.switchKey = 0;
-        // this.notInPool = new Set();
         this.hintHandler = HintHandler.getHintHandler(this);
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         // this.answer = 'TEMPS';
-        console.log('this.answer =', this.answer);
+        // console.log('this.answer =', this.answer);
+        this.gameOver = false;
         this.setState({
             input: this.input,
             guessList: this.guessList,
@@ -131,6 +186,15 @@ class Game extends Component {
         return (this.guessList.length > 0 ? this.guessList.slice(-1)[0] : null);
     }
     
+
+    getNewPossibleList(baseInput, basePosMap) {
+        return this.possibleList.filter(word => {
+            const tstPosMap = this.doCompare(baseInput, word);
+            const ok = this.hintHandler.possibleListFilter(tstPosMap, basePosMap);
+            // if (ok) console.log(word, tstPosMap, basePosMap);
+            return ok;
+        });
+    }
     
     async doInputSubmit() {
         let legalGuess = true;  // assume this
@@ -157,16 +221,11 @@ class Game extends Component {
                 index : this.guessList.length,
                 posMap,
             });
-            const basePosMap = posMap;
-            this.possibleList = this.possibleList.filter(word => {
-                const tstPosMap = this.doCompare(this.input, word);
-                const ok = this.hintHandler.possibleListFilter(tstPosMap, basePosMap);
-                // if (ok) console.log(word, tstPosMap, basePosMap);
-                return ok;
-            });
+            this.possibleList = this.getNewPossibleList(this.input, posMap);
             // console.log(this.possibleList);
             
             if (posMap.every(val => val === EXACT)) {
+                this.gameOver = true;
                 this.setState(
                     {gameOver:true,
                      message: this.buildGameOverMessage(),
@@ -182,6 +241,14 @@ class Game extends Component {
             input: this.input,
             guessList: this.guessList,
         });
+
+        const JSONstring = JSON.stringify(this, [...savedStateFields,
+                                                 ...Object.keys(this.settings),
+                                                 ...Object.keys(this.guessList[0]),
+                                                ]);
+        window.localStorage[savedStateName] = JSONstring;
+        // console.log('JSONstring:', JSONstring);
+        
     }
     
     onVirtKeyPress(key) {
@@ -194,6 +261,7 @@ class Game extends Component {
     onRealKeyDown(event) {
         if (this.state.gameOver) return;
         let key = event.nativeEvent.key;
+        if (key === '?') console.log('this.answer =', this.answer);
         if (key === 'Backspace' && this.state.message != null) {
             this.setState({message: null});
         }
@@ -343,22 +411,24 @@ class Game extends Component {
     }
 
     getPoolChars() {
-        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !this.notInPool.has(c));
+        return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => this.notInPool[c] !== 1);
     }
     
     render() {
-        // console.log('render', this.state.message, this.focusRef);
+        // console.log('render', this.state);
+        if (!this.state || Object.keys(this.state).length === 0) return null;
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
-        this.notInPool = new Set();
+        this.notInPool = {};
         let guessLines = [];
+        this.guessJsxIndex = 0;
         this.state.guessList.forEach( (guessObj) => {
-            guessLines.push(this.formatGuess(guessObj, true));
-            guessLines.push(<br/>);
+            guessLines.push(<Fragment key={this.guessJsxIndex++}>{this.formatGuess(guessObj, true)}</Fragment>);
+            guessLines.push(<br key={this.guessJsxIndex++}/>);
         });
         // if game not over, push inputty line as well
-        if (!this.state.gameOver) {
+        if (!this.state.gameOver && this.state.input !== undefined) {
             const newObj = {
                 guess: this.state.input,
                 posMap: new Array(this.settings.wordlen).fill(NOTUSE),

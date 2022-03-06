@@ -62,7 +62,7 @@ class HintHandlerMarkChars extends HintHandler{
             const markedCount = this.getMarkedCount(guessObj.guess, guessObj.posMap, chval);
             if (markedCount === 0) {
                 this.gameObj.greyString += ` ${chval}`;
-                this.gameObj.notInPool.add(chval);
+                this.gameObj.notInPool[chval] = 1;
             }
         }
         return bgcolor;
@@ -129,7 +129,7 @@ class HintHandlerShowTotals extends HintHandler{
     computeGuessCharColor(guessObj, pos, chval, submitted) {
         const bgcolor = 'white';
         if (submitted && (guessObj.posMap.every(val => val === NOTUSE))) {
-            this.gameObj.notInPool.add(chval);
+            this.gameObj.notInPool[chval] = 1;
         }
         return bgcolor;
     }

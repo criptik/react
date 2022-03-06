@@ -122,7 +122,7 @@ class SettingsPage extends Component {
     render() {
         this.gameObj = this.props.gameObj;
         this.settings = this.gameObj.settings;  // shares the Game settings
-
+        this.switchKey = 0;
         return (
             // first is button to return to game
             <div>
@@ -139,16 +139,16 @@ class SettingsPage extends Component {
               >
                 {String.fromCharCode(0x2b05)}
               </button>
-              Settings
+              Settings (will start new Game)
               <br/>
               <div style={{width:'300px', display:'inline-block', fontSize:'14px'}}>
-                {this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
+                {false && this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
                     ['5', 5], ['6', 6], ['7', 7], ['8', 8],
                 ], true)}
                 <br/>
                 {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
                 {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
-                {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
+                {false && this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
                     ['None (most flexible)', 0],
                     ['Must Reuse Green (slightly harder)', EXACTBIT],
                     ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
