@@ -142,13 +142,13 @@ class SettingsPage extends Component {
               Settings (will start new Game)
               <br/>
               <div style={{width:'300px', display:'inline-block', fontSize:'14px'}}>
-                {false && this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
+                {this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
                     ['5', 5], ['6', 6], ['7', 7], ['8', 8],
                 ], true)}
                 <br/>
                 {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
                 {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
-                {false && this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
+                {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
                     ['None (most flexible)', 0],
                     ['Must Reuse Green (slightly harder)', EXACTBIT],
                     ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
