@@ -148,12 +148,16 @@ class SettingsPage extends Component {
                 <br/>
                 {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
                 {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
+                {this.genSwitchSetting('allowPlurals', `Allow Plurals of ${this.settings.wordlen - 1} letter words? (easier)`) }
+                {false && this.genSwitchSetting('countIllegalGuesses', 'Count Illegal Guesses?') }
+                {this.genSwitchSetting('useVirtKeyboard', 'Use Virtual Keyboard?') }
                 {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
                     ['None (most flexible)', 0],
                     ['Must Reuse Green (slightly harder)', EXACTBIT],
                     ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
                     ['Must Reuse All Hints (hardest and annoying)', EXACTBIT+WRONGBIT+NOTUSEBIT]
                 ])}
+                
               </div>
             </div>
         );

@@ -10,85 +10,93 @@ import "./index.css";
 const nbsp = String.fromCharCode(160);
 const [EXACT, WRONG, NOTUSE] = [1,2,3];
 const [EXACTBIT, WRONGBIT, NOTUSEBIT] = [2,4,8];
-const savedStateName = 'wordguessSavedState';
-const savedStateFields = [
-    'state',
+const savedGameStorageName = 'wordguessSavedGame';
+// list of fields from the this that we will save
+const savedGameFields = [
     'settings',
-    'useVirtKeyboard',
     'answer',
     'guessList',
     'gameOver',
     'message',
-    'keyboard',
+    'illegalGuessCount',
 ];
 
 
 class Game extends Component {
     constructor() {
         super();
-        // window.localStorage.removeItem(savedStateName);
-        const savedStateJSON = window.localStorage.getItem(savedStateName);
-        // console.log('savedStateJSON:', savedStateJSON);
-        if (savedStateJSON) {
-            this.restoreSavedState(savedStateJSON);
-        }
-        else {
-            this.state = {};
+        // uncomment to get rid of old storage item (eg, if new format needed)
+        // window.localStorage.removeItem(savedGameStorageName);
+        const savedGameJSON = window.localStorage.getItem(savedGameStorageName);
+        // console.log('savedGameJSON:', savedGameJSON);
+        if (savedGameJSON) {
+            this.restoreSavedState(savedGameJSON);
+        } else {
             this.setDefaultGameState();
         }
+        // can setup state directly here since in constructor
+        this.state = this.initReactState;
     }
 
     setDefaultGameState() {
         console.log('setting default game state');
+        // default settings
         this.settings = {
             wordlen: 5,
             guessMustBeWord : true,
             noMarkGuessChars : false,            
             hintUsePolicy : EXACTBIT,
+            useVirtKeyboard: false,
+            allowPlurals: false,
         };
-        this.useVirtKeyboard = false;
         this.answer = '';
         this.focusRef = React.createRef();
         this.usedDefaultGameState = true;
-        // this.state here because direct state mutation allowed only in constructor
-        const initState = {
+        this.illegalGuessCount = 0;
+        this.message = '';
+        // return the state that the constructor will put in this.state directly
+        this.initReactState = {
             layoutName: "default",
             input: "",
             letterMap: {},
             guessList: [],
-            useGamePage : true,
+            useGamePage : false,   // enforce settings for very first time thru
             settings: this.settings,
-            message: null,
+            message: this.message,
+            illegalGuessCount: this.illegalGuessCount,
         };
-        for (let field in initState) this.setState({field : initState[field]});
     }
 
-    async restoreSavedState(savedStateJSON) {
-        const savedState = JSON.parse(savedStateJSON);
-        // console.log('savedState', savedState);
-        savedStateFields.forEach( (field) => this[field] = savedState[field]);
+    async restoreSavedState(savedGameJSON) {
+        const savedGame = JSON.parse(savedGameJSON);
+        savedGameFields.forEach( (field) => this[field] = savedGame[field]);
         this.focusRef = React.createRef();
         this.hintHandler = HintHandler.getHintHandler(this);
-        await this.buildWordList(this.settings.wordlen);
         this.usedDefaultGameState = false;
         this.input = '';
-        // for (let field in savedState.state) this.setState({field : savedState[field]});
-        // TODO: reconstruct possibleList
+        // notInPool will be rebuilt on each render so no need to restore here
+        this.tempAlert('Restored Saved Game State', 1500);
+        // return the state that the constructor will put in this.state directly
+        this.initReactState = {
+            layoutName: "default",
+            letterMap: {},
+            useGamePage : true,   // since we saved things while in gamepage
+            settings: this.settings,
+            input: this.input,
+            gameOver: this.gameOver,
+            illegalGuessCount: this.illegalGuessCount,
+            guessList: this.guessList,
+            message: (this.gameOver ? this.buildGameOverMessage() : this.message),                       
+        };
+
+        // reconstruct the longer wordList and possibleList
+        await this.buildWordList(this.settings.wordlen);
+        // reconstruct possibleList from guessList (so we didn't have to save the whole possibleList)
         this.possibleList = Array.from(this.wordList);
         this.guessList.forEach((guessObj) => {
             this.possibleList = this.getNewPossibleList(guessObj.guess, guessObj.posMap);
         });
-        this.setState({...savedState,
-                       useGamePage:true,
-                       input: this.input,
-                       gameOver: this.gameOver,
-                       guessList: this.guessList,
-                       message: (this.gameOver ? this.buildGameOverMessage() : ''),                       
-        });
-        // we believe notInPool will be rebuilt on each render so no need to restore here
-        this.tempAlert('Restored Saved Game State', 1500);
-        // console.log('using saved game state');
-        // console.log('state:', savedState.state);
+        this.setState({possibleListLen: this.possibleList.length});
     }
     
     tempAlert(msg,duration,bgcolor='red') {
@@ -132,10 +140,12 @@ class Game extends Component {
         // this.answer = 'TEMPS';
         // console.log('this.answer =', this.answer);
         this.gameOver = false;
+        this.illegalGuessCount = 0;
         this.setState({
             input: this.input,
             guessList: this.guessList,
             gameOver: false,
+            illegalGuessCount: this.illegalGuessCount,
             message: null,
         });
         if (this.focusRef.current) {
@@ -143,10 +153,11 @@ class Game extends Component {
         }
     }
     
-    async buildWordList(wordlen) {
+    async buildWordList(wordlen, allowPlurals=this.settings.allowPlurals) {
         if (wordlen === this.curAnswerLen) return;
         this.curAnswerLen = wordlen;
-        const URL = `/wordguess/ospd${wordlen}.txt`;
+        const URL = `/wordguess/ospd${allowPlurals ? '' : 'np'}${wordlen}.txt`;
+        // console.log('URL', URL);
         const data = await fetch(URL);
         console.log('fetch complete');
         const text = await data.text();
@@ -202,7 +213,7 @@ class Game extends Component {
         // console.log('usedHintsObj', usedHintsObj);
         if (this.settings.guessMustBeWord && !this.wordList.includes(this.input)) {
             // await this.tempAlert('Guess must be a Legal Scrabble Word', 1500);
-            this.setMessage('Guess must be a Legal Scrabble Word');
+            this.setMessage(`Guess must be in wordlist ${this.settings.allowPlurals ? '' : ', plurals are disabled'}`);
             legalGuess = false;
         }
         else if (this.settings.hintUsePolicy !== 0 && this.guessList.length > 0) {
@@ -235,38 +246,35 @@ class Game extends Component {
         // clean up input for the next time thru
         if (legalGuess) {
             this.input = '';
-            if (this.useVirtKeyboard) this.keyboard.clearInput();
+            if (this.settings.useVirtKeyboard) this.keyboard.clearInput();
+        }
+        else {
+            this.illegalGuessCount++;
+            this.setState({
+                illegalGuessCount: this.illegalGuessCount,
+            });
         }
         this.setState({
             input: this.input,
             guessList: this.guessList,
         });
 
-        const JSONstring = JSON.stringify(this, [...savedStateFields,
-                                                 ...Object.keys(this.settings),
-                                                 ...Object.keys(this.guessList[0]),
-                                                ]);
-        window.localStorage[savedStateName] = JSONstring;
-        // console.log('JSONstring:', JSONstring);
+        // handle the fact that embedded objects need their fields in the list
+        // the last fields are from guessList objects (shown explicitly in case the list is empty)
+        const filteredFieldNames =  [...savedGameFields, ...Object.keys(this.settings), 'guess', 'index', 'posMap'];
+        const JSONstring = JSON.stringify(this, filteredFieldNames);
+        window.localStorage[savedGameStorageName] = JSONstring;
+        // console.log('JSONstring:', JSON.stringify(this, filteredFieldNames, 2));
         
     }
-    
-    onVirtKeyPress(key) {
-        // console.log("Virt Key pressed", key);
-        if (key === '{enter}') {
-            this.doInputSubmit();
-        }
-    }
 
-    onRealKeyDown(event) {
+    commonKeyHandler(key) {
         if (this.state.gameOver) return;
-        let key = event.nativeEvent.key;
         if (key === '?') console.log('this.answer =', this.answer);
         if (key === 'Backspace' && this.state.message != null) {
             this.setState({message: null});
         }
-        // console.log("Real Key Down", key);
-        if (key === 'Enter') {
+        if (['Enter', '{enter}'].includes(key)) {
             this.doInputSubmit();
         }
         else if (key === 'Backspace' && this.input.length > 0) {
@@ -283,6 +291,17 @@ class Game extends Component {
                 this.setState({ input: this.input });
             }
         }
+    }
+    
+    onVirtKeyPress(key) {
+        // console.log("Virt Key pressed", key);
+        this.commonKeyHandler(key);
+    }
+
+    onRealKeyDown(event) {
+        let key = event.nativeEvent.key;
+        // console.log("Real Key Down", key);
+        this.commonKeyHandler(key);
     }
     
     onChange(input) {
@@ -327,7 +346,7 @@ class Game extends Component {
     }
 
     getVirtKeyboard() {
-        if (!this.useVirtKeyboard) return <Fragment></Fragment>;
+        if (!this.settings.useVirtKeyboard) return <Fragment></Fragment>;
         return (
             <Keyboard
               keyboardRef={r => (this.keyboard = r)}
@@ -366,7 +385,7 @@ class Game extends Component {
     }
 
     buildGameOverMessage() {
-        const numGuesses = this.state.guessList.length;
+        const numGuesses = this.guessList.length;
         const html = `Match after ${numGuesses} ${numGuesses === 1 ? 'guess' : 'guesses'}!`;
         const againButton = (
               <button
@@ -438,6 +457,10 @@ class Game extends Component {
         const poolLine = (this.state.guessList.length === 0 ? ' ' :
                              `Pool: ${this.getPoolChars().join(' ')}`);
 
+        const legalGuessCount = this.state.guessList.length;
+        const illegalGuessCount = this.state.illegalGuessCount;
+        let guessCountLine = `Guesses Legal: ${legalGuessCount}`;
+        if (this.settings.countIllegalGuesses) guessCountLine = `${guessCountLine}, Illegal: ${illegalGuessCount}`;
         const gamePage = () => {
             return (
                 <Fragment>
@@ -452,16 +475,19 @@ class Game extends Component {
                     </button>
                     {`WordGuess Game,   ${this.possibleList ? this.possibleList.length : 0} Possible`}
                   </div>
-                <div
-                  onKeyDown = {this.onRealKeyDown.bind(this)}
-                  tabIndex = {0}
-                  ref = {div => this.focusRef = div}
-                >
-                  {guessLines}
-                  {this.genMessageLine()}
-                </div>
-                {poolLine}
-                {this.getVirtKeyboard()}
+                  <div
+                    onKeyDown = {this.onRealKeyDown.bind(this)}
+                    tabIndex = {0}
+                    ref = {div => this.focusRef = div}
+                  >
+                    {guessLines}
+                    {this.genMessageLine()}
+                  </div>
+                  {poolLine}
+                  <br/> 
+                  {guessCountLine}
+                  <br/> 
+                  {this.getVirtKeyboard()}
                 </Fragment>
             );
         }
