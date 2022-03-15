@@ -132,7 +132,7 @@ class Game extends Component {
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
-        this.answer = 'REDOX';
+        // this.answer = 'REDOX';
         // console.log('this.answer =', this.answer);
         this.gameOver = false;
         this.illegalGuessCount = 0;
@@ -424,49 +424,48 @@ class Game extends Component {
         );
     }
 
+    newGameButton() {
+        return (
+            <button
+              onClick = {this.startNewGame.bind(this)}
+              style = {{
+                  marginLeft: '5px',
+              }}
+            >
+              New
+            </button>
+        );
+    }
+    
     buildGameOverMessage() {
         const numGuesses = this.guessList.length;
         const html = `Match after ${numGuesses} ${numGuesses === 1 ? 'guess' : 'guesses'}!`;
-        const againButton = (
-              <button
-                onClick = {this.startNewGame.bind(this)}
-                style = {{
-                    marginLeft: '5px',
-                }}
-              >
-                Again
-              </button>
-        );
 
         return {html: html,
                 bgcolor: 'white',
-                msgButton: againButton,
                };
     }
     
-    setMessage(html, bgcolor='pink', msgButton = null) {
-        const msgObj = {html, bgcolor, msgButton};
+    setMessage(html, bgcolor='pink') {
+        const msgObj = {html, bgcolor};
         // console.log('setMessage', msgObj);
         this.setState({
             message: msgObj,
         });
     }
     
-    genMessageLine() {
-        // console.log('state.message', this.state.message);
-        if (this.state.message === null) return (<Fragment></Fragment>);
-        const buttonJsx = (this.state.message.msgButton === null ?
+     genMessageLine() {
+         // console.log('state.message', this.state.message);
+         if (this.state.message === null) return (<Fragment></Fragment>);
+         const buttonJsx = (this.state.message.msgButton === null ?
                            (<Fragment></Fragment>) :
-                           this.state.message.msgButton);
-        return(
-            <div style={{backgroundColor : this.state.message.bgcolor}} >
-               {<>{this.state.message.html}</>} 
-              {buttonJsx}
-            </div>
-        );
-
-                         
-            
+                            this.state.message.msgButton);
+         return(
+             <div style={{backgroundColor : this.state.message.bgcolor}} >
+             {<>{this.state.message.html}</>} 
+             {buttonJsx}
+             </div>
+         );
     }
 
     getPoolChars() {
@@ -476,6 +475,7 @@ class Game extends Component {
     render() {
         // console.log('render', this.state);
         if (!this.state || Object.keys(this.state).length === 0) return null;
+        this.hintHandler = HintHandler.getHintHandler(this);  // in case it got changed on settings change
         this.yellowString = ' ';
         this.greenString = ' ';
         this.greyString = ' ';
@@ -494,13 +494,19 @@ class Game extends Component {
             };
             guessLines.push(this.formatGuess(newObj, false));
         }
-        const poolLine = (this.state.guessList.length === 0 ? ' ' :
-                             `Pool: ${this.getPoolChars().join(' ')}`);
 
-        const legalGuessCount = this.state.guessList.length;
-        const illegalGuessCount = this.state.illegalGuessCount;
-        let guessCountLine = `Guesses Legal: ${legalGuessCount}`;
-        if (this.settings.countIllegalGuesses) guessCountLine = `${guessCountLine}, Illegal: ${illegalGuessCount}`;
+        const poolLine = (this.state.guessList.length === 0 || this.gameOver ?
+                          <Fragment></Fragment> :
+                          <div>
+                            {`Pool: ${this.getPoolChars().join(' ')}`}
+                            <br/>
+                          </div>
+                         );
+
+        // const legalGuessCount = this.state.guessList.length;
+        // const illegalGuessCount = this.state.illegalGuessCount;
+        // let guessCountLine = `Guesses Legal: ${legalGuessCount}`;
+        // if (this.settings.countIllegalGuesses) guessCountLine = `${guessCountLine}, Illegal: ${illegalGuessCount}`;
         // onChange={this.onChange.bind(this)}
         const gamePage = () => {
             return (
@@ -538,16 +544,17 @@ class Game extends Component {
                     {this.genMessageLine()}
                   </div>
                   {poolLine}
-                  <br/> 
-                  {guessCountLine}
-                  <br/> 
+                  {(this.state.guesslist && this.state.guesslist.length === 0 ? (<Fragment></Fragment>) : this.newGameButton())}
+                  <br/>
                   {this.getVirtKeyboard()}
                 </Fragment>
             );
         }
 
         return (
-            this.state.useGamePage ? gamePage() : <SettingsPage  gameObj={this}/>
+            this.state.useGamePage ?
+                gamePage() :
+                <SettingsPage  gameObj={this} inSettings={{...this.settings}}/>
         );
     }
 }

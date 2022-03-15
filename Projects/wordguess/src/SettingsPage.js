@@ -133,7 +133,13 @@ class SettingsPage extends Component {
                 }}
                 onClick = {() => {
                     this.gameObj.setState({useGamePage:true});
-                    this.gameObj.startNewGame();
+                    // check if any settings changed which require a new game
+                    const critSettings = ['wordlen', 'allowPlurals'];
+                    critSettings.forEach( field => {
+                        if (this.props.inSettings[field] !== this.settings[field]) {
+                            this.gameObj.startNewGame();
+                        }
+                    });
                 }}
                 
               >
