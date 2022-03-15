@@ -36,6 +36,7 @@ class Game extends Component {
         }
         // can setup state directly here since in constructor
         this.state = this.initReactState;
+        this.isMobile = ('ontouchstart' in document.documentElement);
     }
 
     setDefaultGameState() {
@@ -50,7 +51,7 @@ class Game extends Component {
             allowPlurals: false,
         };
         this.answer = '';
-        this.focusRef = React.createRef();
+        this.inputElem = React.createRef();
         this.usedDefaultGameState = true;
         this.illegalGuessCount = 0;
         this.message = '';
@@ -70,12 +71,13 @@ class Game extends Component {
     async restoreSavedState(savedGameJSON) {
         const savedGame = JSON.parse(savedGameJSON);
         savedGameFields.forEach( (field) => this[field] = savedGame[field]);
-        this.focusRef = React.createRef();
+        // this.inputElem = React.createRef();
         this.hintHandler = HintHandler.getHintHandler(this);
         this.usedDefaultGameState = false;
         this.input = '';
         // notInPool will be rebuilt on each render so no need to restore here
         this.tempAlert('Restored Saved Game State', 1500);
+        this.prevDataLength = 0;
         // return the state that the constructor will put in this.state directly
         this.initReactState = {
             layoutName: "default",
@@ -118,16 +120,9 @@ class Game extends Component {
     
     async componentDidMount() {
         if (this.usedDefaultGameState) this.startNewGame();
-        if (this.focusRef && this.focusRef.current) {
-            this.focusRef.focus();
-        }
     }
     
     componentDidUpdate() {
-        if (this.focusRef && this.focusRef.current) {
-            console.log('did update', this.focusref);
-            this.focusRef.focus();
-        }
     }
 
     async startNewGame() {
@@ -148,9 +143,7 @@ class Game extends Component {
             illegalGuessCount: this.illegalGuessCount,
             message: null,
         });
-        if (this.focusRef.current) {
-            this.focusRef.focus();
-        }
+        this.prevDataLength = 0;
     }
     
     async buildWordList(wordlen, allowPlurals=this.settings.allowPlurals) {
@@ -213,7 +206,8 @@ class Game extends Component {
         // console.log('usedHintsObj', usedHintsObj);
         if (this.settings.guessMustBeWord && !this.wordList.includes(this.input)) {
             // await this.tempAlert('Guess must be a Legal Scrabble Word', 1500);
-            this.setMessage(`Guess must be in wordlist ${this.settings.allowPlurals ? '' : ', plurals are disabled'}`);
+            const addon = (this.input.endsWith('S') && !this.settings.allowPlurals ? ', plurals are disabled' : '');
+            this.setMessage(`Guess must be in wordlist${addon}`);
             legalGuess = false;
         }
         else if (this.settings.hintUsePolicy !== 0 && this.guessList.length > 0) {
@@ -246,6 +240,7 @@ class Game extends Component {
         // clean up input for the next time thru
         if (legalGuess) {
             this.input = '';
+            this.inputElem.value = '';
             if (this.settings.useVirtKeyboard) this.keyboard.clearInput();
         }
         else {
@@ -269,6 +264,7 @@ class Game extends Component {
     }
 
     commonKeyHandler(key) {
+        // console.log(key);
         if (this.state.gameOver) return;
         if (key === '?') console.log('this.answer =', this.answer);
         if (key === 'Backspace' && this.state.message != null) {
@@ -300,17 +296,60 @@ class Game extends Component {
 
     onRealKeyDown(event) {
         let key = event.nativeEvent.key;
-        // console.log("Real Key Down", key);
-        this.commonKeyHandler(key);
+        if (false) {
+            const msgtxt = `Real Key Down ${key}`;
+            this.logMsg = msgtxt;
+            console.log(msgtxt);
+            if (key === 'Enter') this.setMessage(msgtxt);
+        }
+        if (key === 'Enter' && this.input.length === this.answer.length) {
+            this.commonKeyHandler(key);
+        }
+    }
+
+    onInput(event) {
+        let key = null;
+        const natEvent = event.nativeEvent;
+        const targ = natEvent.target;
+        const newval = targ.value;
+        const inputType = natEvent.inputType;
+        if (['insertText',
+             'insertCompositionText',
+             'deleteContentBackward'].includes(inputType)) {
+            if (newval.length > this.input.length)
+                key = newval[newval.length - 1];
+            else if (newval.length < this.input.length) {
+                key = 'Backspace';
+            }
+        }
+        if (false) {
+            const msgtxt = `; onInput ${inputType} ${newval} ${key}`;
+            this.logMsg += msgtxt;
+            console.log(msgtxt);
+        }
+        if (key !== null) this.commonKeyHandler(key);
+    }
+
+    // called when focus leaves our input element so we can put it back
+    onBlur(event) {
+        if (this.inputElem) {
+            this.inputElem.focus();
+        }
     }
     
-    onChange(input) {
-        if (input.length > this.answer.length) {
-            input = input.substring(0, this.answer.length);
-            this.keyboard.setInput(input);        }
-        this.input = input;
-        this.setState({ input });
-        // console.log("Input changed", input);
+    onChange(event) {
+        if (false) {
+            const natEvent = event.nativeEvent;
+            const targ = natEvent.target;
+            const newval = targ.value;
+            const inputType = natEvent.inputType;
+            const msgtxt =  `; onChange ${inputType} ${newval}`;
+            this.logMsg += msgtxt;
+            console.log(msgtxt);
+            this.setMessage(this.logMsg);
+            this.logMsg = '';
+            this.commonKeyHandler('Enter');
+        }
     }
 
     formatGuess(guessObj, submitted=false) {
@@ -461,10 +500,11 @@ class Game extends Component {
         const illegalGuessCount = this.state.illegalGuessCount;
         let guessCountLine = `Guesses Legal: ${legalGuessCount}`;
         if (this.settings.countIllegalGuesses) guessCountLine = `${guessCountLine}, Illegal: ${illegalGuessCount}`;
+        // onChange={this.onChange.bind(this)}
         const gamePage = () => {
             return (
                 <Fragment>
-                  <div>
+                  <div  style={{position:'relative'}}>
                     <button
                       style = {{
                           marginRight: '10px',
@@ -474,12 +514,25 @@ class Game extends Component {
                       {String.fromCharCode(0x2699)}
                     </button>
                     {`WordGuess Game,   ${this.possibleList ? this.possibleList.length : 0} Possible`}
+                    <input
+                      type = 'text'
+                      style = {{opacity:0.05,
+                                marginLeft: '5px',
+                                fontSize: '1px',
+                                position: 'absolute',
+                                top: '0px',
+                                left: '30px',
+                               }}
+                      width = '100px'
+                      ref = {elem => this.inputElem = elem}
+                      tabIndex = {0}
+                      autoFocus
+                      onInput={this.onInput.bind(this)}
+                      onKeyDown = {this.onRealKeyDown.bind(this)}
+                      onBlur = {this.onBlur.bind(this)}
+                    />
                   </div>
-                  <div
-                    onKeyDown = {this.onRealKeyDown.bind(this)}
-                    tabIndex = {0}
-                    ref = {div => this.focusRef = div}
-                  >
+                  <div>
                     {guessLines}
                     {this.genMessageLine()}
                   </div>
