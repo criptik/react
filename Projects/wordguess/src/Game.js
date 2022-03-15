@@ -132,7 +132,7 @@ class Game extends Component {
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
-        // this.answer = 'TEMPS';
+        this.answer = 'REDOX';
         // console.log('this.answer =', this.answer);
         this.gameOver = false;
         this.illegalGuessCount = 0;
@@ -283,6 +283,7 @@ class Game extends Component {
                 this.input += key;
                 if (this.input.length > this.answer.length) {
                     this.input = this.input.substring(0, this.answer.length);
+                    this.inputElem.value = this.input;
                 }
                 this.setState({ input: this.input });
             }

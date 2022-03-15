@@ -35,7 +35,7 @@ class HintHandler {
             // get compare info for that guess vs. our new guess
             const newPosMap = this.gameObj.doCompare(guessObj.guess, newGuess);
             const errMsg = this.comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj);
-            if (errMsg !== null) return errMsg;
+            if (errMsg !== '') return errMsg;
         }
         return null; // if we got this far
     }
@@ -185,7 +185,7 @@ class HintHandlerShowTotals extends HintHandler{
     comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
         const [oldE, oldW] = this.countVals(oldPosMap);
         const [newE, newW] = this.countVals(newPosMap);
-        let errMsg = null;
+        let errMsg = '';
         if (oldE !== newE || (this.policyIncludes(WRONGBIT) && oldW !== newW)) {
             // console.log(this.gameObj.settings.hintUsePolicy, oldE, oldW, newE, newW);
             errMsg = (
