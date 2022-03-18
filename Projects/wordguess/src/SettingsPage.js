@@ -145,16 +145,17 @@ class SettingsPage extends Component {
               >
                 {String.fromCharCode(0x2b05)}
               </button>
-              Settings (will start new Game)
+              Settings (* changes will start new Game)
               <br/>
               <div style={{width:'300px', display:'inline-block', fontSize:'14px'}}>
-                {this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder)', [
+                {this.genRadioGroupSetting('wordlen', 'Word Length (longer=harder) *', [
                     ['5', 5], ['6', 6], ['7', 7], ['8', 8],
                 ], true)}
                 <br/>
                 {this.genSwitchSetting('guessMustBeWord', 'Guess must be word? (harder)') }
                 {this.genSwitchSetting('noMarkGuessChars', 'Not Mark Guess Chars? (much harder)') }
-                {this.genSwitchSetting('allowPlurals', `Allow Plurals of ${this.settings.wordlen - 1} letter words? (easier)`) }
+                {this.genSwitchSetting('allowPlurals', `Allow Plurals of ${this.settings.wordlen - 1} letter words? (easier) *`) }
+                {this.genSwitchSetting('startWithReveal', `Start with 1-letter Reveal? (easier)`) }
                 {false && this.genSwitchSetting('countIllegalGuesses', 'Count Illegal Guesses?') }
                 {this.genSwitchSetting('useVirtKeyboard', 'Use Virtual Keyboard?') }
                 {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [

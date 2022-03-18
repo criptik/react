@@ -8,8 +8,9 @@ import {SettingsPage} from './SettingsPage.js';
 import "./index.css";
 
 const nbsp = String.fromCharCode(160);
-const [EXACT, WRONG, NOTUSE] = [1,2,3];
+const [EXACT, WRONG, NOTUSE, UNKNOWN] = [1,2,3,4];
 const [EXACTBIT, WRONGBIT, NOTUSEBIT] = [2,4,8];
+const WILDCHAR = '?';
 const savedGameStorageName = 'wordguessSavedGame';
 // list of fields from the this that we will save
 const savedGameFields = [
@@ -49,6 +50,7 @@ class Game extends Component {
             hintUsePolicy : EXACTBIT,
             useVirtKeyboard: false,
             allowPlurals: false,
+            startWithReveal: false,
         };
         this.answer = '';
         this.inputElem = React.createRef();
@@ -133,6 +135,20 @@ class Game extends Component {
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         // this.answer = 'REDOX';
+        if (this.settings.startWithReveal) {
+            const inputAry = Array(this.settings.wordlen).fill(WILDCHAR);
+            const revealPos = this.findRevealPos();
+            inputAry[revealPos] = this.answer[revealPos];
+            this.input = inputAry.join('');
+            const posMap = this.doCompare(this.input, this.answer);
+            this.guessList.push({
+                guess: this.input,
+                index : this.guessList.length,
+                posMap,
+            });
+            this.possibleList = this.getNewPossibleList(this.input, posMap);
+            this.input = '';
+        }
         // console.log('this.answer =', this.answer);
         this.gameOver = false;
         this.illegalGuessCount = 0;
@@ -171,6 +187,9 @@ class Game extends Component {
                 bchars[index] = null;
                 gchars[index] = null;
                 posMap[index] = EXACT;
+            }
+            else if (bchars[index] === WILDCHAR || gchar === WILDCHAR) {
+                posMap[index] = UNKNOWN;
             }
         });
         // then do any more matches
@@ -260,7 +279,6 @@ class Game extends Component {
         const JSONstring = JSON.stringify(this, filteredFieldNames);
         window.localStorage[savedGameStorageName] = JSONstring;
         // console.log('JSONstring:', JSON.stringify(this, filteredFieldNames, 2));
-        
     }
 
     commonKeyHandler(key) {
@@ -353,6 +371,26 @@ class Game extends Component {
         }
     }
 
+    findRevealPos() {
+        let maxLength = 0;
+        let revealPos = 0;
+        [...this.answer].forEach( (ch, index) => {
+            // skip if in mark chars mode and char is already green
+            const shouldSkip = (!this.settings.noMarkGuessChars &&
+                                this.guessList.length > 0 &&
+                                this.guessList[this.guessList.length - 1].posMap[index] === EXACT);
+            if (!shouldSkip) {
+                const newList = this.possibleList.filter( (word) => word[index] === ch);
+                console.log(`knowing ${ch} at pos ${index} reduces possibleList from ${this.possibleList.length} to ${newList.length}`);
+                if (newList.length > maxLength) {
+                    maxLength = newList.length;
+                    revealPos = index;
+                }
+            }
+        });
+        return revealPos;
+    }
+    
     formatGuess(guessObj, submitted=false) {
         let guessLine = [];
         const guess = guessObj.guess;
@@ -559,4 +597,4 @@ class Game extends Component {
     }
 }
 
-export {Game, EXACT, WRONG, NOTUSE, EXACTBIT, WRONGBIT, NOTUSEBIT};
+export {Game, EXACT, WRONG, NOTUSE, UNKNOWN, EXACTBIT, WRONGBIT, NOTUSEBIT, WILDCHAR};

@@ -1,5 +1,5 @@
 import React, {Fragment} from "react";
-import {EXACT, WRONG, NOTUSE, WRONGBIT, NOTUSEBIT} from './Game.js';
+import {EXACT, WRONG, NOTUSE, UNKNOWN, WRONGBIT, NOTUSEBIT} from './Game.js';
 
 const nbsp = String.fromCharCode(160);
 
@@ -43,6 +43,10 @@ class HintHandler {
     policyIncludes(bits) {
         // console.log('policyIncludes', this.gameObj.settings.hintUsePolicy, bits);
         return ((this.gameObj.settings.hintUsePolicy & bits) !== 0)
+    }
+
+    hasUnknowns(val1, val2) {
+        return (val1 === UNKNOWN && val2 === UNKNOWN);
     }
 }
 
@@ -108,7 +112,7 @@ class HintHandlerMarkChars extends HintHandler{
         for (let pos=0; pos<len; pos++) {
             const newCode = newPosMap[pos];
             const oldCode = oldPosMap[pos];
-            if (newCode !== oldCode) {
+            if (!this.hasUnknowns(newCode, oldCode) && newCode !== oldCode) {
                 // errMsg += `chr ${pos+1} ${newCode} !== ${oldCode}, `;
                 errMsg += this.genErrMsg(newPosMap, oldPosMap, pos, newGuess, guessObj.guess);
             }
@@ -118,7 +122,7 @@ class HintHandlerMarkChars extends HintHandler{
     }
 
     possibleListFilter(tstPosMap, basePosMap) {
-        return tstPosMap.every((val, index) => val === basePosMap[index]);
+        return tstPosMap.every((val, index) => val === basePosMap[index] || this.hasUnknowns(val, basePosMap[index]));
     }
 }
 
@@ -161,9 +165,23 @@ class HintHandlerShowTotals extends HintHandler{
     }
     
     countVals(posMap) {
-        let counts = Array.from([0, 0, 0]);
+        let counts = Array.from([0, 0, 0, 0]);
         posMap.forEach(val => counts[val-1]++);
         return counts;
+    }
+
+    countKnownVals(oldPosMap, newPosMap) {
+        let oldcounts = Array.from([0,0,0,0]);
+        let newcounts = Array.from([0,0,0,0]);
+        for (let idx=0; idx < oldPosMap.length; idx++) {
+            const oldval = oldPosMap[idx];
+            const newval = newPosMap[idx];
+            if (!this.hasUnknowns(oldval, newval)) {
+                oldcounts[oldval-1]++;
+                newcounts[newval-1]++;
+            }
+        }
+        return [oldcounts[0], oldcounts[1], newcounts[0], newcounts[1]];
     }
 
     genCountSpans(exact, wrong) {
@@ -183,8 +201,7 @@ class HintHandlerShowTotals extends HintHandler{
     }
     
     comparePosMaps(oldPosMap, newPosMap, newGuess, guessObj) {
-        const [oldE, oldW] = this.countVals(oldPosMap);
-        const [newE, newW] = this.countVals(newPosMap);
+        const [oldE, oldW, newE, newW] = this.countKnownVals(oldPosMap, newPosMap);
         let errMsg = '';
         if (oldE !== newE || (this.policyIncludes(WRONGBIT) && oldW !== newW)) {
             // console.log(this.gameObj.settings.hintUsePolicy, oldE, oldW, newE, newW);
@@ -201,8 +218,7 @@ class HintHandlerShowTotals extends HintHandler{
     }
 
     possibleListFilter(tstPosMap, basePosMap) {
-        const [tstE, tstW] = this.countVals(tstPosMap);
-        const [baseE, baseW] = this.countVals(basePosMap);
+        const [tstE, tstW, baseE, baseW] = this.countKnownVals(tstPosMap, basePosMap);
         return (tstE === baseE && tstW === baseW);
     }
     
