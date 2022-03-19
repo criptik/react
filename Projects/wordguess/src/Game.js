@@ -19,7 +19,8 @@ const savedGameFields = [
     'guessList',
     'gameOver',
     'message',
-    'illegalGuessCount',
+    'totalGuesses',
+    'input',
 ];
 
 
@@ -55,7 +56,7 @@ class Game extends Component {
         this.answer = '';
         this.inputElem = React.createRef();
         this.usedDefaultGameState = true;
-        this.illegalGuessCount = 0;
+        this.totalGuesses = 0;
         this.message = '';
         // return the state that the constructor will put in this.state directly
         this.initReactState = {
@@ -66,7 +67,7 @@ class Game extends Component {
             useGamePage : false,   // enforce settings for very first time thru
             settings: this.settings,
             message: this.message,
-            illegalGuessCount: this.illegalGuessCount,
+            totalGuesses: this.totalGuesses,
         };
     }
 
@@ -74,9 +75,9 @@ class Game extends Component {
         const savedGame = JSON.parse(savedGameJSON);
         savedGameFields.forEach( (field) => this[field] = savedGame[field]);
         // this.inputElem = React.createRef();
+        this.setInputs(this.input);
         this.hintHandler = HintHandler.getHintHandler(this);
         this.usedDefaultGameState = false;
-        this.input = '';
         // notInPool will be rebuilt on each render so no need to restore here
         this.tempAlert('Restored Saved Game State', 1500);
         this.prevDataLength = 0;
@@ -88,7 +89,7 @@ class Game extends Component {
             settings: this.settings,
             input: this.input,
             gameOver: this.gameOver,
-            illegalGuessCount: this.illegalGuessCount,
+            totalGuesses: this.totalGuesses,
             guessList: this.guessList,
             message: (this.gameOver ? this.buildGameOverMessage() : this.message),                       
         };
@@ -129,17 +130,18 @@ class Game extends Component {
 
     async startNewGame() {
         this.guessList = [];
-        this.input = '';
+        this.setInputs('');
         this.hintHandler = HintHandler.getHintHandler(this);
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
         // this.answer = 'REDOX';
+        this.totalGuesses = 0;
         if (this.settings.startWithReveal) {
             const inputAry = Array(this.settings.wordlen).fill(WILDCHAR);
             const revealPos = this.findRevealPos();
             inputAry[revealPos] = this.answer[revealPos];
-            this.input = inputAry.join('');
+            this.setInputs(inputAry.join(''));
             const posMap = this.doCompare(this.input, this.answer);
             this.guessList.push({
                 guess: this.input,
@@ -147,16 +149,16 @@ class Game extends Component {
                 posMap,
             });
             this.possibleList = this.getNewPossibleList(this.input, posMap);
-            this.input = '';
+            this.setInputs('');
+            this.totalGuesses = 1;
         }
         // console.log('this.answer =', this.answer);
         this.gameOver = false;
-        this.illegalGuessCount = 0;
         this.setState({
             input: this.input,
             guessList: this.guessList,
             gameOver: false,
-            illegalGuessCount: this.illegalGuessCount,
+            totalGuesses: this.totalGuesses,
             message: null,
         });
         this.prevDataLength = 0;
@@ -218,10 +220,16 @@ class Game extends Component {
             return ok;
         });
     }
+
+    setInputs(str) {
+        this.input = str;
+        if (this.inputElem) this.inputElem.value = str;
+    }
     
     async doInputSubmit() {
         let legalGuess = true;  // assume this
         if (this.input.length !== this.answer.length) return;
+        this.totalGuesses++;
         // console.log('usedHintsObj', usedHintsObj);
         if (this.settings.guessMustBeWord && !this.wordList.includes(this.input)) {
             // await this.tempAlert('Guess must be a Legal Scrabble Word', 1500);
@@ -258,14 +266,13 @@ class Game extends Component {
         }
         // clean up input for the next time thru
         if (legalGuess) {
-            this.input = '';
-            this.inputElem.value = '';
+            this.setInputs('');
             if (this.settings.useVirtKeyboard) this.keyboard.clearInput();
         }
         else {
             this.illegalGuessCount++;
             this.setState({
-                illegalGuessCount: this.illegalGuessCount,
+                totalGuesses: this.totalGuesses,
             });
         }
         this.setState({
@@ -292,16 +299,15 @@ class Game extends Component {
             this.doInputSubmit();
         }
         else if (key === 'Backspace' && this.input.length > 0) {
-            this.input = this.input.slice(0, -1);
+            this.setInputs(this.input.slice(0, -1));
             this.setState({ input: this.input });
         }
         else {
             key = key.toUpperCase();
             if ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.includes(key)) {
-                this.input += key;
+                this.setInputs(this.input + key);
                 if (this.input.length > this.answer.length) {
-                    this.input = this.input.substring(0, this.answer.length);
-                    this.inputElem.value = this.input;
+                    this.setInputs(this.input.substring(0, this.answer.length));
                 }
                 this.setState({ input: this.input });
             }
@@ -468,10 +474,25 @@ class Game extends Component {
               onClick = {this.startNewGame.bind(this)}
               style = {{
                   marginLeft: '5px',
+                  marginRight: '10px',
               }}
             >
               New
             </button>
+        );
+    }
+
+    newButtonLine() {
+        let legalGuessCount = this.state.guessList.length;
+        if (this.settings.startWithReveal) legalGuessCount--;
+        const guessesText = (this.totalGuesses === 0 ? '' :
+                             `Guesses: ${this.totalGuesses}, (${legalGuessCount} Legal)`);
+              
+        return (
+            <Fragment>
+              {this.newGameButton()}
+                {guessesText}
+            </Fragment>
         );
     }
     
@@ -524,6 +545,8 @@ class Game extends Component {
             guessLines.push(<Fragment key={this.guessJsxIndex++}>{this.formatGuess(guessObj, true)}</Fragment>);
             guessLines.push(<br key={this.guessJsxIndex++}/>);
         });
+        // sync up this.input and this.inputElem.value
+        this.setInputs(this.input);
         // if game not over, push inputty line as well
         if (!this.state.gameOver && this.state.input !== undefined) {
             const newObj = {
@@ -541,11 +564,6 @@ class Game extends Component {
                           </div>
                          );
 
-        // const legalGuessCount = this.state.guessList.length;
-        // const illegalGuessCount = this.state.illegalGuessCount;
-        // let guessCountLine = `Guesses Legal: ${legalGuessCount}`;
-        // if (this.settings.countIllegalGuesses) guessCountLine = `${guessCountLine}, Illegal: ${illegalGuessCount}`;
-        // onChange={this.onChange.bind(this)}
         const gamePage = () => {
             return (
                 <Fragment>
@@ -582,7 +600,7 @@ class Game extends Component {
                     {this.genMessageLine()}
                   </div>
                   {poolLine}
-                  {(this.state.guesslist && this.state.guesslist.length === 0 ? (<Fragment></Fragment>) : this.newGameButton())}
+                  {this.newButtonLine()}
                   <br/>
                   {this.getVirtKeyboard()}
                 </Fragment>
