@@ -16,6 +16,10 @@ class SettingsPage extends Component {
         // and set the state so we re-render
         this.settings[settingName] = newval;
         this.setState({settings: this.settings});
+        // kludge for special case
+        if (this.settings.noMarkGuessChars && this.settings.hintUsePolicy === EXACTBIT+WRONGBIT) {
+            this.settings.hintUsePolicy += NOTUSEBIT;
+        }
     }
     
     getSwitch(settingName) {
@@ -119,6 +123,23 @@ class SettingsPage extends Component {
         );
     }
 
+    genHintUsePolicySetting() {
+        const choicesAryMark = [
+                    ['None (most flexible)', 0],
+                    ['Must Reuse Green (slightly harder)', EXACTBIT],
+                    ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
+                    ['Must Reuse All Hints (hardest and annoying)', EXACTBIT+WRONGBIT+NOTUSEBIT]
+        ];
+        const choicesAryNonMark = [
+                    ['None (most flexible)', 0],
+                    ['Green Totals Must Match (slightly harder)', EXACTBIT],
+                    ['All Totals Must Match (hardest and annoying)', EXACTBIT+WRONGBIT+NOTUSEBIT]
+        ];            
+        const choicesAry = this.settings.noMarkGuessChars ? choicesAryNonMark : choicesAryMark;
+        
+        return this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', choicesAry);
+    }
+    
     render() {
         this.gameObj = this.props.gameObj;
         this.settings = this.gameObj.settings;  // shares the Game settings
@@ -158,13 +179,8 @@ class SettingsPage extends Component {
                 {this.genSwitchSetting('startWithReveal', `Start with 1-letter Reveal? (easier)`) }
                 {false && this.genSwitchSetting('countIllegalGuesses', 'Count Illegal Guesses?') }
                 {this.genSwitchSetting('useVirtKeyboard', 'Use Virtual Keyboard?') }
-                {this.genRadioGroupSetting('hintUsePolicy', 'Hint Reuse Requirements', [
-                    ['None (most flexible)', 0],
-                    ['Must Reuse Green (slightly harder)', EXACTBIT],
-                    ['Must Reuse Green and Yellow (harder)', EXACTBIT+WRONGBIT],
-                    ['Must Reuse All Hints (hardest and annoying)', EXACTBIT+WRONGBIT+NOTUSEBIT]
-                ])}
-                
+                {this.genHintUsePolicySetting()}
+       
               </div>
             </div>
         );

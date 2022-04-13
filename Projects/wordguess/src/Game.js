@@ -484,7 +484,7 @@ class Game extends Component {
 
     newButtonLine() {
         let legalGuessCount = this.state.guessList.length;
-        if (this.settings.startWithReveal) legalGuessCount--;
+        // if (this.settings.startWithReveal) legalGuessCount--;
         const guessesText = (this.totalGuesses === 0 ? '' :
                              `Guesses: ${this.totalGuesses}, (${legalGuessCount} Legal)`);
               
@@ -497,8 +497,8 @@ class Game extends Component {
     }
     
     buildGameOverMessage() {
-        const numGuesses = this.guessList.length;
-        const html = `Match after ${numGuesses} ${numGuesses === 1 ? 'guess' : 'guesses'}!`;
+        // const numGuesses = this.state.guessList.length;
+        const html = `Match!!`;
 
         return {html: html,
                 bgcolor: 'white',
