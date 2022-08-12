@@ -39,6 +39,7 @@ class Game extends Component {
         // can setup state directly here since in constructor
         this.state = this.initReactState;
         this.isMobile = ('ontouchstart' in document.documentElement);
+        // console.log('constructor state set complete');
     }
 
     setDefaultGameState() {
@@ -71,10 +72,10 @@ class Game extends Component {
         };
     }
 
-    async restoreSavedState(savedGameJSON) {
+    restoreSavedState(savedGameJSON) {
         const savedGame = JSON.parse(savedGameJSON);
         savedGameFields.forEach( (field) => this[field] = savedGame[field]);
-        // this.inputElem = React.createRef();
+        this.inputElem = React.createRef();
         this.setInputs(this.input);
         this.hintHandler = HintHandler.getHintHandler(this);
         this.usedDefaultGameState = false;
@@ -91,17 +92,10 @@ class Game extends Component {
             gameOver: this.gameOver,
             totalGuesses: this.totalGuesses,
             guessList: this.guessList,
-            message: (this.gameOver ? this.buildGameOverMessage() : this.message),                       
+            message: this.message,                       
         };
 
-        // reconstruct the longer wordList and possibleList
-        await this.buildWordList(this.settings.wordlen);
-        // reconstruct possibleList from guessList (so we didn't have to save the whole possibleList)
-        this.possibleList = Array.from(this.wordList);
-        this.guessList.forEach((guessObj) => {
-            this.possibleList = this.getNewPossibleList(guessObj.guess, guessObj.posMap);
-        });
-        this.setState({possibleListLen: this.possibleList.length});
+        // console.log(`restoreSavedState this.guessList=${this.guessList}`);
     }
     
     tempAlert(msg,duration,bgcolor='red') {
@@ -122,7 +116,31 @@ class Game extends Component {
     }
     
     async componentDidMount() {
-        if (this.usedDefaultGameState) this.startNewGame();
+        if (this.usedDefaultGameState) {
+            this.startNewGame();
+        }
+        else {
+            // we are using a restored state,
+            // reconstruct the longer wordList and possibleList
+            // we do this here because constructor cannot be async
+            await this.buildWordList(this.settings.wordlen);
+            // reconstruct possibleList from guessList (so we didn't have to save the whole possibleList)
+            this.possibleList = Array.from(this.wordList);
+            this.guessList.forEach((guessObj) => {
+                this.possibleList = this.getNewPossibleList(guessObj.guess, guessObj.posMap);
+            });
+            this.setState({possibleListLen: this.possibleList.length});
+            // console.log(`componentDidMount possibleListLen=${this.possibleList.length}, gameOver=${this.gameOver}`);
+            // also gameOverMessage if needed
+            if (false && this.gameOver) {
+                this.input = this.answer;
+                this.message = await this.buildGameOverMessage();
+                this.setState(
+                    {gameOver:true,
+                     message: this.message,
+                    });
+            }
+        }
     }
     
     componentDidUpdate() {
@@ -223,7 +241,7 @@ class Game extends Component {
 
     setInputs(str) {
         this.input = str;
-        if (this.inputElem) this.inputElem.value = str;
+        if (this.inputElem && str) this.inputElem.value = str;
     }
     
     async doInputSubmit() {
@@ -258,9 +276,10 @@ class Game extends Component {
             
             if (posMap.every(val => val === EXACT)) {
                 this.gameOver = true;
+                this.message = await this.buildGameOverMessage();
                 this.setState(
                     {gameOver:true,
-                     message: this.buildGameOverMessage(),
+                     message: this.message,
                     });
             }
         }
@@ -282,10 +301,11 @@ class Game extends Component {
 
         // handle the fact that embedded objects need their fields in the list
         // the last fields are from guessList objects (shown explicitly in case the list is empty)
-        const filteredFieldNames =  [...savedGameFields, ...Object.keys(this.settings), 'guess', 'index', 'posMap'];
+        const filteredFieldNames =  [...savedGameFields, ...Object.keys(this.settings), 'guess', 'index', 'posMap', 'html', 'def', 'bgcolor'];
         const JSONstring = JSON.stringify(this, filteredFieldNames);
         window.localStorage[savedGameStorageName] = JSONstring;
         // console.log('JSONstring:', JSON.stringify(this, filteredFieldNames, 2));
+        console.log(`message: ${this.message}`);
     }
 
     commonKeyHandler(key) {
@@ -324,7 +344,7 @@ class Game extends Component {
         if (false) {
             const msgtxt = `Real Key Down ${key}`;
             this.logMsg = msgtxt;
-            console.log(msgtxt);
+            // console.log(msgtxt);
             if (key === 'Enter') this.setMessage(msgtxt);
         }
         if (key === 'Enter' && this.input.length === this.answer.length) {
@@ -387,7 +407,7 @@ class Game extends Component {
                                 this.guessList[this.guessList.length - 1].posMap[index] === EXACT);
             if (!shouldSkip) {
                 const newList = this.possibleList.filter( (word) => word[index] === ch);
-                console.log(`knowing ${ch} at pos ${index} reduces possibleList from ${this.possibleList.length} to ${newList.length}`);
+                // console.log(`knowing ${ch} at pos ${index} reduces possibleList from ${this.possibleList.length} to ${newList.length}`);
                 if (newList.length > maxLength) {
                     maxLength = newList.length;
                     revealPos = index;
@@ -483,7 +503,7 @@ class Game extends Component {
     }
 
     newButtonLine() {
-        let legalGuessCount = this.state.guessList.length;
+        let legalGuessCount = (this.state.guessList ? this.state.guessList.length : 0);
         // if (this.settings.startWithReveal) legalGuessCount--;
         const guessesText = (this.totalGuesses === 0 ? '' :
                              `Guesses: ${this.totalGuesses}, (${legalGuessCount} Legal)`);
@@ -495,12 +515,28 @@ class Game extends Component {
             </Fragment>
         );
     }
-    
-    buildGameOverMessage() {
-        // const numGuesses = this.state.guessList.length;
-        const html = `Match!!`;
 
+    async getDefinition() {
+        const word = this.input;
+        // make a req to the api
+        const result = await fetch(
+            `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`
+        );
+        if (!result.ok) {
+            // alert("No definition found");
+            return null;
+        }
+        const data = await result.json();
+        // console.log(data);
+        return `(${data[0].meanings[0].partOfSpeech}): ${data[0].meanings[0].definitions[0].definition}`;
+    }
+    
+    async buildGameOverMessage() {
+        // const numGuesses = this.state.guessList.length;
+        var html = `Match!!`;
+        const def = await this.getDefinition();
         return {html: html,
+                def: def,
                 bgcolor: 'white',
                };
     }
@@ -515,13 +551,15 @@ class Game extends Component {
     
      genMessageLine() {
          // console.log('state.message', this.state.message);
-         if (this.state.message === null) return (<Fragment></Fragment>);
+         if (!this.state.message) return (<Fragment></Fragment>);
          const buttonJsx = (this.state.message.msgButton === null ?
                            (<Fragment></Fragment>) :
                             this.state.message.msgButton);
+         const defhtml = (this.state.message.def ? `${this.state.message.def}` : '');
          return(
              <div style={{backgroundColor : this.state.message.bgcolor}} >
-             {<>{this.state.message.html}</>} 
+               {<>{this.state.message.html}</>}
+               {<p><small><small>{defhtml}</small></small></p>}
              {buttonJsx}
              </div>
          );
@@ -541,10 +579,12 @@ class Game extends Component {
         this.notInPool = {};
         let guessLines = [];
         this.guessJsxIndex = 0;
-        this.state.guessList.forEach( (guessObj) => {
-            guessLines.push(<Fragment key={this.guessJsxIndex++}>{this.formatGuess(guessObj, true)}</Fragment>);
-            guessLines.push(<br key={this.guessJsxIndex++}/>);
-        });
+        if (this.state.guessList) {
+            this.state.guessList.forEach( (guessObj) => {
+                guessLines.push(<Fragment key={this.guessJsxIndex++}>{this.formatGuess(guessObj, true)}</Fragment>);
+                guessLines.push(<br key={this.guessJsxIndex++}/>);
+            });
+        }
         // sync up this.input and this.inputElem.value
         this.setInputs(this.input);
         // if game not over, push inputty line as well
@@ -556,7 +596,7 @@ class Game extends Component {
             guessLines.push(this.formatGuess(newObj, false));
         }
 
-        const poolLine = (this.state.guessList.length === 0 || this.gameOver ?
+        const poolLine = (!this.state.guessList || this.state.guessList.length === 0 || this.gameOver ?
                           <Fragment></Fragment> :
                           <div>
                             {`Pool: ${this.getPoolChars().join(' ')}`}
