@@ -74,6 +74,7 @@ class Game extends Component {
 
     restoreSavedState(savedGameJSON) {
         const savedGame = JSON.parse(savedGameJSON);
+        console.log('restore', savedGame);
         savedGameFields.forEach( (field) => this[field] = savedGame[field]);
         this.inputElem = React.createRef();
         this.setInputs(this.input);
@@ -116,6 +117,7 @@ class Game extends Component {
     }
     
     async componentDidMount() {
+        // console.log('didMount', this.inputElem);
         if (this.usedDefaultGameState) {
             this.startNewGame();
         }
@@ -141,6 +143,14 @@ class Game extends Component {
                     });
             }
         }
+        // console.log('didMountExit', this.inputElem);
+        // with inputElem set up, sync up input
+        if (!this.kbdTarget) {
+            this.kbdTarget = this.inputElem;
+            // console.log('kbdTarget', this.kbdTarget);
+            this.setInputs(this.input);
+        }
+        
     }
     
     componentDidUpdate() {
@@ -153,7 +163,7 @@ class Game extends Component {
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
-        // this.answer = 'REDOX';
+        this.answer = 'FRIZZ';
         this.totalGuesses = 0;
         if (this.settings.startWithReveal) {
             const inputAry = Array(this.settings.wordlen).fill(WILDCHAR);
@@ -240,8 +250,10 @@ class Game extends Component {
     }
 
     setInputs(str) {
+        // console.log(`setInputs: ${str}`, this.kbdTarget);
+        // if (this.inputElem.current) console.log(this.inputElem.current);
         this.input = str;
-        if (this.inputElem && str) this.inputElem.value = str;
+        if (this.kbdTarget) this.kbdTarget.value = str;
     }
     
     async doInputSubmit() {
@@ -282,6 +294,13 @@ class Game extends Component {
                      message: this.message,
                     });
             }
+            else {
+                this.message = '';
+                this.setState(
+                    {gameOver:false,
+                     message: this.message,
+                    });
+            }
         }
         // clean up input for the next time thru
         if (legalGuess) {
@@ -305,11 +324,11 @@ class Game extends Component {
         const JSONstring = JSON.stringify(this, filteredFieldNames);
         window.localStorage[savedGameStorageName] = JSONstring;
         // console.log('JSONstring:', JSON.stringify(this, filteredFieldNames, 2));
-        console.log(`message: ${this.message}`);
+        // console.log(`message: ${this.message}`);
     }
 
     commonKeyHandler(key) {
-        // console.log(key);
+        // console.log(`key=${key}`);
         if (this.state.gameOver) return;
         if (key === '?') console.log('this.answer =', this.answer);
         if (key === 'Backspace' && this.state.message != null) {
@@ -341,6 +360,8 @@ class Game extends Component {
 
     onRealKeyDown(event) {
         let key = event.nativeEvent.key;
+        this.kbdTarget = event.nativeEvent.target;
+        // console.log("RealKeyDown", key, this.kbdTarget);
         if (false) {
             const msgtxt = `Real Key Down ${key}`;
             this.logMsg = msgtxt;
@@ -354,10 +375,12 @@ class Game extends Component {
 
     onInput(event) {
         let key = null;
+        this.kbdTarget = event.nativeEvent.target;
         const natEvent = event.nativeEvent;
         const targ = natEvent.target;
         const newval = targ.value;
         const inputType = natEvent.inputType;
+        // console.log(`natEvent: ${targ} ${inputType} ${newval} ${this.input}`);
         if (['insertText',
              'insertCompositionText',
              'deleteContentBackward'].includes(inputType)) {
@@ -384,6 +407,7 @@ class Game extends Component {
     
     onChange(event) {
         if (false) {
+            this.kbdTarget = event.nativeEvent.target;
             const natEvent = event.nativeEvent;
             const targ = natEvent.target;
             const newval = targ.value;
@@ -544,6 +568,7 @@ class Game extends Component {
     setMessage(html, bgcolor='pink') {
         const msgObj = {html, bgcolor};
         // console.log('setMessage', msgObj);
+        this.message = msgObj;
         this.setState({
             message: msgObj,
         });
@@ -567,6 +592,29 @@ class Game extends Component {
 
     getPoolChars() {
         return [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => this.notInPool[c] !== 1);
+    }
+
+    getInputElem() {
+         return(
+             <input
+               type = 'text'
+               style = {{opacity:0.05,
+                         marginLeft: '5px',
+                         fontSize: '1px',
+                         // we used to put this up at the top but now is at the bottom (where input focus is)
+                         // position: 'absolute',
+                         // top: '0px',
+                         // left: '30px',
+                        }}
+               width = '100px'
+               ref = {elem => this.inputElem = elem}
+               tabIndex = {0}
+               autoFocus
+               onInput={this.onInput.bind(this)}
+               onKeyDown = {this.onRealKeyDown.bind(this)}
+               onBlur = {this.onBlur.bind(this)}
+             />
+         );
     }
     
     render() {
@@ -617,23 +665,6 @@ class Game extends Component {
                       {String.fromCharCode(0x2699)}
                     </button>
                     {`WordGuess Game,   ${this.possibleList ? this.possibleList.length : 0} Possible`}
-                    <input
-                      type = 'text'
-                      style = {{opacity:0.05,
-                                marginLeft: '5px',
-                                fontSize: '1px',
-                                position: 'absolute',
-                                top: '0px',
-                                left: '30px',
-                               }}
-                      width = '100px'
-                      ref = {elem => this.inputElem = elem}
-                      tabIndex = {0}
-                      autoFocus
-                      onInput={this.onInput.bind(this)}
-                      onKeyDown = {this.onRealKeyDown.bind(this)}
-                      onBlur = {this.onBlur.bind(this)}
-                    />
                   </div>
                   <div>
                     {guessLines}
@@ -641,6 +672,7 @@ class Game extends Component {
                   </div>
                   {poolLine}
                   {this.newButtonLine()}
+                  {this.getInputElem()}
                   <br/>
                   {this.getVirtKeyboard()}
                 </Fragment>

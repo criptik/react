@@ -88,19 +88,21 @@ class HintHandlerMarkChars extends HintHandler{
         const newCode = newPosMap[pos];
         const oldCode = oldPosMap[pos];
         const oldChr = oldGuess[pos];
+        // console.log(`genErrMsg ${pos} ${newCode} ${oldCode} ${oldChr} ${newGuess[pos]},`, newPosMap, oldPosMap);
         // we know policy at least includes EXACT
         if (oldCode === EXACT) return `chr ${pos+1} must be ${oldChr}, `;
+        if (this.policyIncludes(WRONGBIT)&& oldCode === WRONG){
+            if (newCode === EXACT) return `chr ${pos+1} must not be ${oldChr}, `;
+            if (newCode === NOTUSE) return `must use ${oldChr} somewhere, `;
+        }
         if (this.policyIncludes(NOTUSEBIT) && oldCode === NOTUSE) {
+            if (newCode === EXACT) return `chr ${pos+1} must not be ${oldChr}, `;
             // see if oldChr is used in EXACT or WRONG to adjust errmsg
             const count = this.getMarkedCount(oldGuess, oldPosMap, oldChr);
             const usesStr = (count === 1 ? 'use' :'uses');
             return (count === 0 ?
                     `must not use ${oldChr}, ` :
                     `only ${count} ${usesStr} of ${oldChr}, `);
-        }
-        if (this.policyIncludes(WRONGBIT)&& oldCode === WRONG){
-            if (newCode === EXACT) return `chr ${pos+1} must not be ${oldChr}, `;
-            if (newCode === NOTUSE) return `must use ${oldChr} somewhere, `;
         }
         return '';
     }
