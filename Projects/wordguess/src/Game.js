@@ -163,7 +163,7 @@ class Game extends Component {
         await this.buildWordList(this.settings.wordlen);
         this.possibleList = Array.from(this.wordList);
         this.answer = this.wordList[Math.floor(Math.random() * this.wordList.length)].toUpperCase();
-        this.answer = 'FRIZZ';
+        // this.answer = 'FRIZZ';
         this.totalGuesses = 0;
         if (this.settings.startWithReveal) {
             const inputAry = Array(this.settings.wordlen).fill(WILDCHAR);
