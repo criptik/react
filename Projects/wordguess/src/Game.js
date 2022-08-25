@@ -546,21 +546,31 @@ class Game extends Component {
         const result = await fetch(
             `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`
         );
+        var defs = [];
         if (!result.ok) {
             // alert("No definition found");
-            return null;
+            defs.push('No definition found');
+            return defs;
         }
         const data = await result.json();
         // console.log(data);
-        return `(${data[0].meanings[0].partOfSpeech}): ${data[0].meanings[0].definitions[0].definition}`;
+        data.forEach((d, dindex) => {
+            d.meanings.forEach((m, mindex) => {
+                const pspeech = m.partOfSpeech;
+                m.definitions.forEach((def, defindex) => {
+                    if (defindex == 0) defs.push(`(${pspeech}): ${def.definition}`)
+                });
+            });
+        });
+        return defs;
     }
     
     async buildGameOverMessage() {
         // const numGuesses = this.state.guessList.length;
         var html = `Match!!`;
-        const def = await this.getDefinition();
+        const defs = await this.getDefinition();
         return {html: html,
-                def: def,
+                defs: defs,
                 bgcolor: 'white',
                };
     }
@@ -580,12 +590,19 @@ class Game extends Component {
          const buttonJsx = (this.state.message.msgButton === null ?
                            (<Fragment></Fragment>) :
                             this.state.message.msgButton);
-         const defhtml = (this.state.message.def ? `${this.state.message.def}` : '');
+         var defhtml = [];
+         if (this.state.message.defs) {
+             this.state.message.defs.forEach(def => {
+                 defhtml.push(<Fragment>{def}</Fragment>);
+                 defhtml.push(<br/>);
+             });
+         }
          return(
              <div style={{backgroundColor : this.state.message.bgcolor}} >
                {<>{this.state.message.html}</>}
-               {<p><small><small>{defhtml}</small></small></p>}
-             {buttonJsx}
+               <br/>
+               {<small><small>{defhtml}</small></small>}
+               {buttonJsx}
              </div>
          );
     }
