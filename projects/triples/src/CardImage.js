@@ -5,7 +5,7 @@
 // canvas as required. This will be the size of your image output
 // later.
 
-import fs from "fs";
+// import fs from "fs";
 // import process from "process";
 // import child_process from "child_process";
 import canvasPkg from "canvas";
@@ -117,11 +117,11 @@ class CardImage {
 
     // To generate the image, you need to transform the canvas to a buffer
     // that can be written to an output using the toBuffer() method:
-    writeImage(imageFileName) {
-        const buffer = this.canvas.toBuffer("image/png");
-        // write the output using fs.writeFileSync() method:
-        fs.writeFileSync(imageFileName, buffer);
-    }
+    // writeImage(imageFileName) {
+    //     const buffer = this.canvas.toBuffer("image/png");
+    //     // write the output using fs.writeFileSync() method:
+    //     fs.writeFileSync(imageFileName, buffer);
+    // }
     
 }
 

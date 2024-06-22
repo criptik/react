@@ -1,3 +1,5 @@
-The Projects directory contains the node_modules directory that is
+The projects directory contains the node_modules directory that is
 shared with all next-level projects.  To create this directory from
-scratch run createSharedProjectsDir.sh.
+scratch run createSharedProjectsDir.sh.  If npx create-react-app
+hangs, you may have to run disable-ipv6.sh first.
+
